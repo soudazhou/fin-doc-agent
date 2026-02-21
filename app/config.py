@@ -103,13 +103,27 @@ class Settings(BaseSettings):
     embedding_dimensions: int = 1536
 
     # -------------------------------------------------------------------------
-    # LLM Configuration
+    # LLM Configuration — Multi-Provider
     # -------------------------------------------------------------------------
-    # claude-sonnet-4-6 is the reasoning model used by the Analyst agent.
-    # It offers the best balance of quality and cost for this use case.
-    # Temperature 0.1 keeps outputs deterministic for financial analysis
-    # (we want consistent, factual answers, not creative ones).
+    # DESIGN DECISION: Provider-agnostic LLM layer.
+    # As of Feb 2026, Chinese LLMs (DeepSeek, Qwen, GLM-5, MiniMax) match
+    # frontier Western models at 10-100x lower cost. We support two providers:
+    #   - "anthropic": Claude via native Anthropic SDK
+    #   - "openai_compatible": Any OpenAI-compatible API (DeepSeek, Qwen,
+    #     GLM-5, Kimi, MiniMax, OpenAI itself)
+    #
+    # Switching providers is a single .env change — no code changes needed.
+    # Use cheap models (DeepSeek V3 at $0.14/1M) for dev, Claude for demos.
+    #
+    # Example configs:
+    #   DeepSeek V3:  provider=openai_compatible, base_url=https://api.deepseek.com/v1, model=deepseek-chat
+    #   Qwen 3.5:    provider=openai_compatible, base_url=https://dashscope.aliyuncs.com/compatible-mode/v1, model=qwen-plus
+    #   GLM-5:       provider=openai_compatible, base_url=https://open.bigmodel.cn/api/paas/v4, model=glm-5
+    #   Claude:      provider=anthropic, model=claude-sonnet-4-6
     # -------------------------------------------------------------------------
+    llm_provider: str = "anthropic"  # "anthropic" or "openai_compatible"
+    llm_base_url: str | None = None  # Only needed for openai_compatible
+    llm_api_key: str | None = None   # Overrides provider-specific key if set
     llm_model: str = "claude-sonnet-4-6"
     llm_temperature: float = 0.1
     llm_max_tokens: int = 4096

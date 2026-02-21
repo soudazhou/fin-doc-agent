@@ -32,10 +32,74 @@ Financial institutions need to extract insights from large volumes of documents 
 | Multi-agent | LangGraph | CrewAI, OpenAI Agents SDK, Claude Agent SDK | Graph-based state machines are most debuggable; conditional routing for fintech workflows |
 | Vector DB | PostgreSQL + pgvector | Pinecone, Weaviate, Chroma | No extra infra, full SQL alongside vectors, ACID transactions |
 | Embeddings | OpenAI text-embedding-3-small | Nomic Embed V2, Voyage AI | No GPU needed, high quality at low cost, simple API |
-| LLM | Claude (claude-sonnet-4-6) | GPT-4o, open-source models | Strong reasoning, 200K context, excellent instruction following |
+| LLM | Multi-provider (Claude, DeepSeek, Qwen, GLM-5) | Single-vendor lock-in | Provider-agnostic design: cheap models for dev, Claude for demo (see LLM Strategy below) |
 | PDF Parsing | Docling (IBM) | pdfplumber, Camelot, PyMuPDF | Purpose-built for structured docs, understands financial tables |
 | Task Queue | Celery + Redis | FastAPI BackgroundTasks, RQ | Reliability (retries, persistence), monitoring (Flower), scalability |
 | Evaluation | DeepEval | Ragas, LangSmith, custom | pytest-style, CI/CD ready, detailed metric explanations |
+
+## LLM Strategy — Multi-Provider Design
+
+### Why Multi-Provider?
+
+As of February 2026, Chinese LLMs have reached frontier parity with Western models at a fraction of the cost. Locking into a single provider is both expensive and limiting. Our architecture abstracts the LLM layer behind a common interface, allowing us to:
+
+1. **Minimize development costs** — use DeepSeek V3 ($0.14/1M input) for iteration
+2. **Maximize demo quality** — switch to Claude Sonnet 4.6 for interviews
+3. **Demonstrate engineering maturity** — vendor abstraction is a production best practice
+
+### LLM Landscape (February 2026)
+
+| Model | Provider | SWE-bench | Input $/1M | Output $/1M | Best For |
+|-------|----------|-----------|-----------|------------|----------|
+| Claude Sonnet 4.6 | Anthropic | 80.8%* | $3.00 | $15.00 | Best reasoning quality, demos |
+| GPT-5.2 | OpenAI | 80.0% | ~$0.80 | ~$3.20 | General tasks |
+| MiniMax M2.5 | MiniMax | 80.2% | $0.20 | $1.00 | Coding tasks, open-weight |
+| GLM-5 | Zhipu AI | 77.8% | $1.00 | $3.20 | MIT licensed, self-hostable |
+| Kimi K2.5 | Moonshot AI | 76.8% | $0.60 | $2.50 | Agent swarms, 256K context |
+| DeepSeek V3 | DeepSeek | 73.0% | $0.14 | $0.28 | **Best price/performance** |
+| DeepSeek R1 | DeepSeek | — | $0.55 | $2.19 | Complex reasoning, 20-50x cheaper than o1 |
+| Qwen 3.5-Plus | Alibaba | — | ~$0.11 | — | Cheapest flagship |
+
+*\* Opus-tier models score 80.8-80.9%; Sonnet is slightly lower but best value.*
+
+### Provider Architecture
+
+```
+app/services/llm.py
+├── LLMProvider (Protocol)      — Common interface: complete(messages) → str
+├── AnthropicProvider           — Claude API (native SDK)
+├── OpenAICompatibleProvider    — Any OpenAI-compatible API:
+│   ├── DeepSeek               — api.deepseek.com
+│   ├── Qwen                   — dashscope.aliyuncs.com
+│   ├── GLM-5                  — open.bigmodel.cn
+│   ├── MiniMax                — api.minimax.chat
+│   ├── Kimi                   — api.moonshot.cn
+│   └── OpenAI                 — api.openai.com
+└── get_llm_provider()         — Factory function, reads from config
+```
+
+**Key design decision:** Most Chinese LLMs expose OpenAI-compatible APIs. We only need two implementations — `AnthropicProvider` (for Claude's native SDK) and `OpenAICompatibleProvider` (for everything else). Switching providers is a single `.env` change:
+
+```bash
+# Development (cheap)
+LLM_PROVIDER=openai_compatible
+LLM_BASE_URL=https://api.deepseek.com/v1
+LLM_API_KEY=your-deepseek-key
+LLM_MODEL=deepseek-chat
+
+# Demo / Interview (best quality)
+LLM_PROVIDER=anthropic
+LLM_API_KEY=your-anthropic-key
+LLM_MODEL=claude-sonnet-4-6
+```
+
+### Cost Strategy
+
+| Phase | Model | Estimated Cost |
+|-------|-------|---------------|
+| Development & testing | DeepSeek V3 | ~$5-10/month |
+| Evaluation runs | DeepSeek R1 or Qwen 3.5 | ~$5/month |
+| Demo & interviews | Claude Sonnet 4.6 | ~$20 total |
 
 ## Implementation Phases
 
@@ -80,28 +144,51 @@ Build the full pipeline: PDF upload → parse → chunk → embed → store.
 
 ### Phase 3: Multi-Agent RAG System
 
-Build the LangGraph-based multi-agent system for question answering.
+Build the LangGraph-based multi-agent system with a provider-agnostic LLM layer.
 
 **Agent flow:**
 
 ```
-User Query → Orchestrator → Retriever (pgvector search) → Analyst (Claude) → Answer + Sources
+User Query → Orchestrator → Retriever (pgvector search) → Analyst (LLM) → Answer + Sources
+                                                              │
+                                                    ┌────────┴────────┐
+                                                    │  LLM Provider   │
+                                                    │  (configurable) │
+                                                    ├─────────────────┤
+                                                    │ • Anthropic     │
+                                                    │ • DeepSeek      │
+                                                    │ • Qwen / GLM-5  │
+                                                    │ • Any OAI-compat│
+                                                    └─────────────────┘
 ```
 
 **Key decisions:**
 
 - LangGraph state machine makes agent flow explicit and testable
 - Retriever returns top-5 chunks with cosine similarity scores
-- Analyst uses Claude with a financial analysis system prompt
+- **LLM layer is provider-agnostic** — two implementations cover all providers:
+  - `AnthropicProvider` for Claude (native SDK, streaming support)
+  - `OpenAICompatibleProvider` for everything else (DeepSeek, Qwen, GLM-5, Kimi, MiniMax, OpenAI)
+- Provider is selected via `.env` config — switch between cheap dev models and Claude for demos
 - Responses include source citations (page numbers) for verifiability
+
+**Files to create:**
+
+- `app/services/llm.py` — Provider protocol, AnthropicProvider, OpenAICompatibleProvider, factory function
+- `app/agents/retriever.py` — Vector search agent
+- `app/agents/analyst.py` — LLM reasoning agent (uses LLM provider, not hardcoded Claude)
+- `app/agents/orchestrator.py` — LangGraph graph definition
+- `app/api/ask.py` — `/ask` endpoint
 
 **Tasks:**
 
+- [ ] Implement LLM provider abstraction (`LLMProvider` protocol + two implementations)
+- [ ] Add multi-provider config to `app/config.py` (provider, base_url, api_key, model)
 - [ ] Implement retriever agent: cosine similarity search, top-5 chunks, relevance scores
-- [ ] Implement analyst agent: Claude API call with retrieved context, financial analysis prompt
+- [ ] Implement analyst agent: uses provider-agnostic LLM service with financial analysis prompt
 - [ ] Build LangGraph graph: orchestrator → retriever → analyst → response
 - [ ] Create `/ask` POST endpoint
-- [ ] Response includes answer, source chunks with page numbers, confidence score
+- [ ] Response includes answer, source chunks with page numbers, provider/model used
 
 ### Phase 4: Evaluation Framework
 
