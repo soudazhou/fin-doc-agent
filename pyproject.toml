@@ -66,14 +66,18 @@ dependencies = [
     # Used by SQLAlchemy's async engine under the hood.
     "asyncpg>=0.30.0",
 
-    # pgvector: Python bindings for the pgvector PostgreSQL extension.
-    # Provides the `Vector` column type for storing embeddings directly
-    # in PostgreSQL — no separate vector database needed.
-    # DESIGN DECISION: pgvector over Pinecone/Weaviate/Chroma because:
-    # 1. No additional infrastructure (just a PostgreSQL extension)
-    # 2. Demonstrates relational DB expertise (required by job spec)
-    # 3. Supports HNSW indexing for fast approximate nearest neighbor search
+    # --- Vector Store (Pluggable) ---
+    # DESIGN DECISION: We implement BOTH pgvector and Chroma behind a common
+    # VectorStore protocol, then benchmark head-to-head (Recall@k, MRR, latency).
+    # This lets data drive the recommendation rather than assumptions.
+    #
+    # pgvector: PostgreSQL extension for vector similarity search.
+    # Pros: No extra infra, HNSW indexing, demonstrates relational DB skills.
     "pgvector>=0.3.6",
+
+    # ChromaDB: Lightweight embedding database.
+    # Pros: Simple API, fast prototyping, in-process or client/server modes.
+    "chromadb>=0.6.3",
 
     # --- Task Queue ---
     # Celery: Distributed task queue for background processing.

@@ -129,13 +129,33 @@ class Settings(BaseSettings):
     llm_max_tokens: int = 4096
 
     # -------------------------------------------------------------------------
+    # Vector Store Configuration — Pluggable Backend
+    # -------------------------------------------------------------------------
+    # DESIGN DECISION: Pluggable vector store behind a common interface.
+    # We implement both pgvector and Chroma, then benchmark them head-to-head
+    # on the same dataset (Recall@k, MRR, latency). This lets data drive the
+    # recommendation rather than assumptions.
+    #
+    # Options:
+    #   - "pgvector": PostgreSQL extension (default, no extra infra)
+    #   - "chroma": ChromaDB (in-process or client/server)
+    # -------------------------------------------------------------------------
+    vectorstore_type: str = "pgvector"  # "pgvector" or "chroma"
+    chroma_url: str | None = None  # Only needed for Chroma in client/server mode
+
+    # -------------------------------------------------------------------------
     # Chunking Configuration
     # -------------------------------------------------------------------------
-    # DESIGN DECISION: Token-based chunking (not character-based) because:
+    # DESIGN DECISION: Chunk size is CONFIGURABLE, not hardcoded.
+    # Most projects pick 512 tokens by intuition. We benchmark multiple sizes
+    # (256, 512, 1024) against a golden dataset to find the optimal size
+    # empirically. The /benchmark/retrieval endpoint automates this comparison.
+    #
+    # Token-based chunking (not character-based) because:
     # 1. Aligns with LLM token limits — no surprises at inference time
     # 2. tiktoken is the same tokenizer used by OpenAI models
     # 3. 512 tokens ≈ 1-2 paragraphs, good for financial document sections
-    # 4. 50 token overlap prevents information loss at chunk boundaries
+    # 4. Overlap prevents information loss at chunk boundaries
     # -------------------------------------------------------------------------
     chunk_size: int = 512
     chunk_overlap: int = 50
@@ -147,9 +167,24 @@ class Settings(BaseSettings):
     # 5 chunks provides enough context without overwhelming the LLM.
     # similarity_threshold: Minimum cosine similarity score to include a chunk.
     # Chunks below this threshold are filtered out as irrelevant.
+    # max_search_iterations: Agentic search loop bound — prevents runaway costs.
     # -------------------------------------------------------------------------
     retrieval_top_k: int = 5
     retrieval_similarity_threshold: float = 0.7
+    max_search_iterations: int = 3
+
+    # -------------------------------------------------------------------------
+    # Authorisation Configuration
+    # -------------------------------------------------------------------------
+    # DESIGN DECISION: Auth is toggleable. Disabled during local dev for
+    # convenience, enabled in production. API key auth (not OAuth/JWT) is
+    # appropriate for an API-first service.
+    #
+    # Rate limiting uses Redis (already in the stack for Celery).
+    # -------------------------------------------------------------------------
+    auth_enabled: bool = False  # Toggle on for production / demo
+    rate_limit_rpm: int = 100   # Default requests-per-minute per API key
+    audit_logging_enabled: bool = True  # Log all queries for compliance
 
     # -------------------------------------------------------------------------
     # Pydantic Settings Configuration

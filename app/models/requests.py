@@ -16,6 +16,8 @@
 # - Native JSON Schema generation for OpenAPI docs
 # =============================================================================
 
+from typing import Literal
+
 from pydantic import BaseModel, ConfigDict, Field
 
 
@@ -23,10 +25,14 @@ class AskRequest(BaseModel):
     """
     Request body for POST /ask — Ask a question about a financial document.
 
+    The orchestrator auto-detects the capability from the question, or you
+    can specify it explicitly via the `capability` field.
+
     Example:
         {
             "question": "What was Apple's total revenue in Q3 2024?",
-            "document_id": 1
+            "document_id": 1,
+            "capability": "qa"
         }
     """
 
@@ -47,14 +53,38 @@ class AskRequest(BaseModel):
         examples=[1],
     )
 
+    # Optional: explicitly select which agent capability to use.
+    # If None, the orchestrator auto-classifies the intent from the question.
+    # DESIGN DECISION: Auto-detection is the default because users shouldn't
+    # need to know our internal routing. Explicit override is available for
+    # testing and for clients that want deterministic routing.
+    capability: Literal["qa", "summarise", "compare", "extract"] | None = Field(
+        default=None,
+        description=(
+            "Agent capability to use. If omitted, auto-detected from the question. "
+            "Options: 'qa' (answer questions), 'summarise' (structured summary), "
+            "'compare' (cross-document comparison), 'extract' (structured data extraction)."
+        ),
+    )
+
     model_config = ConfigDict(
-        # Generate JSON Schema examples for OpenAPI docs
         json_schema_extra={
             "examples": [
                 {
                     "question": "What was the total revenue in Q3 2024?",
                     "document_id": 1,
-                }
+                    "capability": "qa",
+                },
+                {
+                    "question": "Summarise the risk factors section",
+                    "document_id": 1,
+                    "capability": "summarise",
+                },
+                {
+                    "question": "Extract all quarterly revenue figures as a table",
+                    "document_id": 1,
+                    "capability": "extract",
+                },
             ]
         }
     )
