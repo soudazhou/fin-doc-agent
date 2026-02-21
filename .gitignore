@@ -1,0 +1,51 @@
+# =============================================================================
+# Git Ignore — Financial Document Q&A Agent
+# =============================================================================
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+*.egg
+
+# --- Virtual Environment ---
+.venv/
+venv/
+ENV/
+
+# --- Environment & Secrets ---
+# CRITICAL: Never commit API keys or secrets
+.env
+.env.local
+.env.production
+
+# --- IDE ---
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# --- OS ---
+.DS_Store
+Thumbs.db
+
+# --- Project Specific ---
+# Uploaded PDFs (user data, may be large)
+data/uploads/
+# uv lockfile is committed (reproducible builds)
+# but cache is not
+.uv_cache/
+
+# --- Testing ---
+.coverage
+htmlcov/
+.pytest_cache/
+
+# --- Docker ---
+# Don't ignore docker-compose.yml (it's committed)
+# But ignore local overrides
+docker-compose.override.yml

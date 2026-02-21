@@ -1,0 +1,194 @@
+# =============================================================================
+# Financial Document Q&A Agent — Project Configuration
+# =============================================================================
+#
+# DESIGN DECISION: We use `pyproject.toml` (PEP 621) as the single source of
+# truth for project metadata and dependencies. This replaces the older
+# `setup.py` + `requirements.txt` pattern and is the modern Python standard.
+#
+# DESIGN DECISION: We use `uv` as our package manager. It's a Rust-based
+# drop-in replacement for pip that is 10-100x faster. It also manages virtual
+# environments and lockfiles. See: https://docs.astral.sh/uv/
+#
+# DESIGN DECISION: Dependencies are grouped into logical sections:
+#   - Core: The minimum needed to run the application
+#   - Dev: Testing, linting, evaluation tools (not needed in production)
+#
+# To install: `uv sync` (core) or `uv sync --group dev` (core + dev)
+# =============================================================================
+
+[project]
+name = "fin-doc-agent"
+version = "0.1.0"
+description = "Multi-agent RAG system for financial document Q&A"
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "MIT" }
+authors = [
+    { name = "Wenxuan Zhou", email = "soudazhou@gmail.com" },
+]
+
+# ---------------------------------------------------------------------------
+# Core Dependencies
+# ---------------------------------------------------------------------------
+dependencies = [
+    # --- Web Framework ---
+    # FastAPI: High-performance async web framework. Chosen because:
+    # 1. Native async support (critical for I/O-bound LLM/DB calls)
+    # 2. Automatic OpenAPI docs generation (great for demo)
+    # 3. Pydantic V2 integration for request/response validation
+    "fastapi>=0.115.0",
+
+    # Uvicorn: ASGI server to run FastAPI. The [standard] extra includes
+    # uvloop (faster event loop) and httptools (faster HTTP parsing).
+    "uvicorn[standard]>=0.34.0",
+
+    # python-multipart: Required by FastAPI for file upload support.
+    # Without this, `UploadFile` parameters will fail at runtime.
+    "python-multipart>=0.0.18",
+
+    # --- Data Validation ---
+    # Pydantic V2: Used for all request/response models AND app configuration.
+    # V2 is a complete rewrite with 5-50x performance improvement over V1.
+    # `pydantic-settings` enables loading config from environment variables.
+    "pydantic>=2.10.0",
+    "pydantic-settings>=2.7.0",
+
+    # --- Database ---
+    # SQLAlchemy 2.0: ORM with native async support via asyncpg.
+    # DESIGN DECISION: We use SQLAlchemy (not raw SQL) because:
+    # 1. Type-safe query building
+    # 2. Migration support via Alembic (future phase)
+    # 3. Clean separation of DB models from Pydantic models
+    "sqlalchemy[asyncio]>=2.0.36",
+
+    # asyncpg: PostgreSQL async driver. Fastest Python PostgreSQL driver.
+    # Used by SQLAlchemy's async engine under the hood.
+    "asyncpg>=0.30.0",
+
+    # pgvector: Python bindings for the pgvector PostgreSQL extension.
+    # Provides the `Vector` column type for storing embeddings directly
+    # in PostgreSQL — no separate vector database needed.
+    # DESIGN DECISION: pgvector over Pinecone/Weaviate/Chroma because:
+    # 1. No additional infrastructure (just a PostgreSQL extension)
+    # 2. Demonstrates relational DB expertise (required by job spec)
+    # 3. Supports HNSW indexing for fast approximate nearest neighbor search
+    "pgvector>=0.3.6",
+
+    # --- Task Queue ---
+    # Celery: Distributed task queue for background processing.
+    # Used for async PDF ingestion (parse → chunk → embed → store).
+    # DESIGN DECISION: Celery over FastAPI BackgroundTasks because:
+    # 1. Job spec explicitly lists Celery/RQ experience
+    # 2. Celery provides retries, monitoring (Flower), and persistence
+    # 3. BackgroundTasks are fire-and-forget with no reliability guarantees
+    "celery[redis]>=5.4.0",
+
+    # --- Redis ---
+    # Used as both Celery's message broker AND result backend.
+    # Also used for caching (future phase).
+    # DESIGN DECISION: Single Redis instance serves multiple purposes
+    # but uses different database numbers (0=broker, 1=results) for isolation.
+    "redis>=5.2.0",
+
+    # --- AI / LLM ---
+    # Anthropic SDK: For Claude API calls (Analyst agent reasoning).
+    # DESIGN DECISION: Claude over OpenAI because:
+    # 1. Excellent at following complex instructions (financial analysis)
+    # 2. Large context window (200K tokens) useful for financial docs
+    # 3. Strong reasoning capabilities for multi-step financial analysis
+    "anthropic>=0.42.0",
+
+    # LangGraph: Graph-based multi-agent orchestration framework.
+    # DESIGN DECISION: LangGraph over simpler alternatives because:
+    # 1. Explicit state machines make agent flow debuggable and testable
+    # 2. Supports conditional routing (e.g., route by query type)
+    # 3. Built-in persistence for conversation state
+    # 4. Most impressive framework choice for demonstrating orchestration skills
+    "langgraph>=0.2.0",
+
+    # LangChain Core: Required by LangGraph for base abstractions.
+    # We use minimal LangChain — only what LangGraph needs.
+    "langchain-core>=0.3.0",
+
+    # --- Embeddings ---
+    # OpenAI SDK: Used ONLY for text-embedding-3-small embeddings.
+    # DESIGN DECISION: OpenAI embeddings over open-source because:
+    # 1. No GPU required (important for local dev and demo)
+    # 2. High quality at low cost ($0.02/1M tokens)
+    # 3. Simple API — one call, no model hosting
+    "openai>=1.58.0",
+
+    # tiktoken: OpenAI's tokenizer. Used for token-aware text chunking.
+    # Ensures chunks align with model token limits (not character-based).
+    "tiktoken>=0.8.0",
+
+    # --- Document Parsing ---
+    # Docling: IBM's document intelligence library.
+    # DESIGN DECISION: Docling over PyPDF/pdfplumber because:
+    # 1. Purpose-built for structured documents (financial tables!)
+    # 2. Understands multi-header tables, spanning cells, hierarchies
+    # 3. Outputs clean markdown — ideal for LLM consumption
+    # 4. Built-in OCR for scanned PDFs
+    "docling>=2.16.0",
+]
+
+# ---------------------------------------------------------------------------
+# Development Dependencies
+# ---------------------------------------------------------------------------
+[dependency-groups]
+dev = [
+    # --- Testing ---
+    "pytest>=8.3.0",
+    "pytest-asyncio>=0.24.0",
+    "httpx>=0.28.0",  # Async test client for FastAPI
+
+    # --- Evaluation ---
+    # DeepEval: LLM evaluation framework with RAG-specific metrics.
+    # Provides pytest-style test cases for evaluating:
+    # - Faithfulness (is the answer grounded in context?)
+    # - Answer Relevancy (does it address the question?)
+    # - Context Precision/Recall (is retrieval effective?)
+    # DESIGN DECISION: DeepEval over Ragas because:
+    # 1. Better developer experience (pytest integration, detailed explanations)
+    # 2. CI/CD ready out of the box
+    # 3. Supports golden dataset synthesis
+    "deepeval>=2.1.0",
+
+    # --- Code Quality ---
+    "ruff>=0.8.0",     # Linter + formatter (replaces black, isort, flake8)
+    "mypy>=1.13.0",    # Static type checking
+]
+
+# ---------------------------------------------------------------------------
+# Tool Configuration
+# ---------------------------------------------------------------------------
+
+# Ruff: Fast Python linter and formatter written in Rust.
+# Replaces black, isort, flake8, and pyflakes in a single tool.
+[tool.ruff]
+target-version = "py312"
+line-length = 88
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort (import sorting)
+    "UP",  # pyupgrade (modern Python syntax)
+    "B",   # flake8-bugbear (common bugs)
+    "SIM", # flake8-simplify
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

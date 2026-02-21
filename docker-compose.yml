@@ -1,0 +1,197 @@
+# =============================================================================
+# Financial Document Q&A Agent — Docker Compose
+# =============================================================================
+#
+# This file defines the complete local development environment.
+# Run `docker compose up` to start everything.
+#
+# ARCHITECTURE OVERVIEW:
+# ┌─────────────┐     ┌──────────┐     ┌──────────────┐
+# │  FastAPI App │────▶│  Redis   │     │  PostgreSQL  │
+# │  (port 8000)│     │  (6379)  │     │  + pgvector  │
+# └──────┬──────┘     └────┬─────┘     │  (5432)      │
+#        │                 │           └──────────────┘
+#        │                 │                  ▲
+# ┌──────▼──────┐          │                  │
+# │   Celery    │──────────┘                  │
+# │   Worker    │─────────────────────────────┘
+# └─────────────┘
+#
+# DESIGN DECISIONS:
+# 1. All services use a shared Docker network for inter-service communication
+# 2. PostgreSQL uses the pgvector extension image (not vanilla postgres)
+# 3. Redis serves dual purpose: Celery broker (db 0) and result backend (db 1)
+# 4. Volumes persist data between container restarts
+# 5. Health checks ensure services start in the correct order
+#
+# PORTS EXPOSED TO HOST:
+# - 8000: FastAPI application (API docs at http://localhost:8000/docs)
+# - 5432: PostgreSQL (for direct DB access during development)
+# - 6379: Redis (for debugging with redis-cli)
+# - 5555: Flower — Celery monitoring dashboard
+# =============================================================================
+
+services:
+  # ---------------------------------------------------------------------------
+  # PostgreSQL with pgvector extension
+  # ---------------------------------------------------------------------------
+  # WHY pgvector?
+  # Instead of running a separate vector database (Pinecone, Weaviate, Chroma),
+  # we use PostgreSQL with the pgvector extension. This means:
+  # - One fewer service to manage in production
+  # - Full SQL capabilities alongside vector search
+  # - ACID transactions across both relational and vector data
+  # - Demonstrates relational DB expertise (required by job spec)
+  #
+  # The `pgvector/pgvector:pg17` image is the official pgvector Docker image
+  # built on PostgreSQL 17. The extension is pre-installed but must be
+  # enabled per-database with `CREATE EXTENSION vector;` (done in init script).
+  # ---------------------------------------------------------------------------
+  db:
+    image: pgvector/pgvector:pg17
+    container_name: fin-doc-db
+    environment:
+      POSTGRES_USER: finagent
+      POSTGRES_PASSWORD: finagent_dev
+      POSTGRES_DB: fin_doc_agent
+    ports:
+      - "5432:5432"
+    volumes:
+      # Named volume for data persistence across container restarts
+      - pgdata:/var/lib/postgresql/data
+      # Init script to enable the pgvector extension on first startup
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U finagent -d fin_doc_agent"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ---------------------------------------------------------------------------
+  # Redis — Message Broker & Cache
+  # ---------------------------------------------------------------------------
+  # Redis serves three purposes in this architecture:
+  # 1. Celery message broker (db 0) — queues tasks for background workers
+  # 2. Celery result backend (db 1) — stores task results for polling
+  # 3. Future: Application caching layer (db 2)
+  #
+  # DESIGN DECISION: We use separate Redis databases (0, 1, 2) rather than
+  # separate Redis instances to keep the dev environment simple while still
+  # isolating concerns. In production, you'd likely use separate instances.
+  # ---------------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: fin-doc-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ---------------------------------------------------------------------------
+  # FastAPI Application
+  # ---------------------------------------------------------------------------
+  # The main API server. Runs with uvicorn in reload mode for development.
+  # In production, you'd use gunicorn with uvicorn workers instead.
+  # ---------------------------------------------------------------------------
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: fin-doc-app
+    command: >
+      uvicorn app.main:app
+      --host 0.0.0.0
+      --port 8000
+      --reload
+      --reload-dir /app
+    ports:
+      - "8000:8000"
+    volumes:
+      # Mount source code for hot-reload during development
+      - .:/app
+    env_file:
+      - .env
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # ---------------------------------------------------------------------------
+  # Celery Worker — Background Task Processing
+  # ---------------------------------------------------------------------------
+  # Handles CPU/IO-intensive tasks asynchronously:
+  # - PDF parsing (Docling extraction)
+  # - Text chunking (tiktoken tokenization)
+  # - Embedding generation (OpenAI API calls)
+  # - Vector storage (pgvector inserts)
+  #
+  # DESIGN DECISION: Celery over FastAPI BackgroundTasks because:
+  # 1. Reliability — tasks survive worker crashes (acks_late=True)
+  # 2. Monitoring — Flower dashboard shows task status, timing, errors
+  # 3. Scalability — add more workers by scaling this service
+  # 4. Job spec explicitly requires Celery/RQ experience
+  #
+  # The `--concurrency 2` flag limits parallel tasks. For a demo, 2 is enough.
+  # In production, tune based on CPU cores and task type (CPU vs IO bound).
+  # ---------------------------------------------------------------------------
+  celery-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: fin-doc-celery-worker
+    command: >
+      celery -A app.workers.celery_app worker
+      --loglevel=info
+      --concurrency=2
+    volumes:
+      - .:/app
+    env_file:
+      - .env
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # ---------------------------------------------------------------------------
+  # Flower — Celery Monitoring Dashboard
+  # ---------------------------------------------------------------------------
+  # Web UI for monitoring Celery workers and tasks.
+  # Access at http://localhost:5555
+  #
+  # Shows: active workers, task history, success/failure rates, timing.
+  # Useful for demos — visually shows async processing in action.
+  # ---------------------------------------------------------------------------
+  flower:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: fin-doc-flower
+    command: >
+      celery -A app.workers.celery_app flower
+      --port=5555
+    ports:
+      - "5555:5555"
+    volumes:
+      - .:/app
+    env_file:
+      - .env
+    depends_on:
+      redis:
+        condition: service_healthy
+
+# =============================================================================
+# Named Volumes
+# =============================================================================
+# Docker named volumes persist data across container restarts.
+# To fully reset: `docker compose down -v` (destroys all data)
+# =============================================================================
+volumes:
+  pgdata:
+  redisdata:
