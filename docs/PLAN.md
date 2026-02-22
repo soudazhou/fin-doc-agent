@@ -590,6 +590,10 @@ Add production-grade access control appropriate for financial data.
 - [ ] Add a demo script: ingest 10+ docs → ask all 4 capabilities → compare providers → run benchmarks → evaluate
 - [ ] Document benchmark results (chunk sizes, vector stores, provider comparison) in `docs/BENCHMARKS.md`
 - [ ] Add GitHub Actions CI workflow (ruff lint + pytest on every PR)
+- [ ] Integration smoke tests (deferred from Phase 4 — require API keys + running services):
+  - [ ] `POST /compare` with two real providers returns side-by-side results
+  - [ ] `POST /benchmark/retrieval` returns latency statistics against ingested chunks
+  - [ ] `GET /metrics` returns aggregated provider stats from `query_metrics` table
 
 ## API Endpoints (Complete)
 
@@ -609,14 +613,28 @@ Add production-grade access control appropriate for financial data.
 
 ## Verification Plan
 
+### Unit Tests (no API keys required)
+
+All pure-logic tests run via `uv run pytest tests/` with zero external dependencies:
+
+- Pricing registry, provider ID parsing, winner computation, Pydantic validation
+- Chunker, vectorstore (Chroma in-memory), agent classification, LLM injection via mocks
+- 60 tests passing as of Phase 4
+
+### Integration Tests (require API keys + running services)
+
+These are deferred to Phase 7 when the full stack is running with sample data:
+
 1. **Ingestion**: Upload 10+ financial PDFs, verify chunks with embeddings at multiple chunk sizes
 2. **Agentic search**: Ask a complex query, verify the search trace shows query rewriting and multi-iteration retrieval
 3. **Multi-capability**: Test all 4 capabilities — Q&A, summarise, compare, extract
-4. **Retrieval accuracy**: Run `/benchmark/retrieval` with 1000+ chunks, verify Recall@5 > 0.85
-5. **Chunk size comparison**: Compare 256/512/1024 token chunks, document which performs best
-6. **Vector store comparison**: Compare pgvector vs Chroma on same dataset, document results
-7. **Provider comparison**: Run `/compare` with 3 providers, verify side-by-side results
-8. **Evaluation**: Run `/evaluate`, verify all 6 metrics return scores; verify regression tracking
-9. **Feedback loop**: Run eval twice with a pipeline change, verify `/evaluate/history` shows comparison
-10. **Auth**: Verify API key auth, document ACL, and audit logging
-11. **Infrastructure**: `docker compose up` starts all services; Flower dashboard at `localhost:5555`
+4. **Provider comparison**: Run `POST /compare` with 2+ real providers, verify side-by-side results with latency and cost
+5. **Retrieval benchmark**: Run `POST /benchmark/retrieval` against ingested chunks, verify p50/p95 latency stats
+6. **Metrics dashboard**: Run `GET /metrics` after several queries, verify aggregated stats by provider
+7. **Retrieval accuracy**: Run `/benchmark/retrieval` with 1000+ chunks, verify Recall@5 > 0.85
+8. **Chunk size comparison**: Compare 256/512/1024 token chunks, document which performs best
+9. **Vector store comparison**: Compare pgvector vs Chroma on same dataset, document results
+10. **Evaluation**: Run `/evaluate`, verify all 6 metrics return scores; verify regression tracking
+11. **Feedback loop**: Run eval twice with a pipeline change, verify `/evaluate/history` shows comparison
+12. **Auth**: Verify API key auth, document ACL, and audit logging
+13. **Infrastructure**: `docker compose up` starts all services; Flower dashboard at `localhost:5555`
