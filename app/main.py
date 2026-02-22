@@ -33,7 +33,9 @@ from pathlib import Path
 
 from fastapi import FastAPI
 
+from app.api.admin import router as admin_router
 from app.api.ask import router as ask_router
+from app.api.audit import AuditLoggingMiddleware
 from app.api.benchmark import router as benchmark_router
 from app.api.evaluate import router as evaluate_router
 from app.api.ingest import router as ingest_router
@@ -137,11 +139,22 @@ app = FastAPI(
 # Phase 3: Question answering (/ask)
 # Phase 4: Benchmarking & comparison (/compare, /benchmark, /metrics)
 # Phase 5: Evaluation (/evaluate, /evaluate/runs, /evaluate/history, /evaluate/failures)
+# Phase 6: Admin & auth (/admin/keys, /admin/audit)
 # ---------------------------------------------------------------------------
 app.include_router(ingest_router)
 app.include_router(ask_router)
 app.include_router(benchmark_router)
 app.include_router(evaluate_router)
+app.include_router(admin_router)
+
+
+# ---------------------------------------------------------------------------
+# Middleware
+# ---------------------------------------------------------------------------
+# Audit logging middleware records every request to the audit_logs table.
+# Registered after routers so it wraps the entire request lifecycle.
+# ---------------------------------------------------------------------------
+app.add_middleware(AuditLoggingMiddleware)
 
 
 # ---------------------------------------------------------------------------

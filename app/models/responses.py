@@ -462,3 +462,87 @@ class EvalFailuresResponse(BaseModel):
         default=None,
         description="Metric that fails most often across test cases",
     )
+
+
+# ---------------------------------------------------------------------------
+# Phase 6: Authorization Response Models
+# ---------------------------------------------------------------------------
+
+
+class ApiKeyResponse(BaseModel):
+    """
+    Response for API key details.
+
+    Never includes raw key or hash — only the prefix for identification.
+    """
+
+    id: int
+    name: str
+    key_prefix: str
+    scopes: list[str] | None = None
+    rate_limit_rpm: int | None = None
+    all_documents_access: bool
+    is_active: bool
+    document_ids: list[int] = Field(default_factory=list)
+    created_at: datetime
+    expires_at: datetime | None = None
+    last_used_at: datetime | None = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class ApiKeyCreatedResponse(BaseModel):
+    """
+    Response for POST /admin/keys — returned once at key creation.
+
+    WARNING: The raw_key is only returned in this response.
+    It is never stored or retrievable after creation.
+    """
+
+    id: int
+    name: str
+    key_prefix: str
+    raw_key: str = Field(
+        description=(
+            "The full API key. Store it securely "
+            "— it will NOT be shown again."
+        ),
+    )
+    scopes: list[str] | None = None
+    rate_limit_rpm: int | None = None
+    all_documents_access: bool
+    created_at: datetime
+    expires_at: datetime | None = None
+
+
+class ApiKeyListResponse(BaseModel):
+    """Response for GET /admin/keys — list of all API keys."""
+
+    keys: list[ApiKeyResponse]
+    total: int
+
+
+class AuditLogResponse(BaseModel):
+    """Response for a single audit log entry."""
+
+    id: int
+    api_key_id: int | None = None
+    api_key_name: str | None = None
+    endpoint: str
+    method: str
+    path: str
+    document_id: int | None = None
+    question: str | None = None
+    client_ip: str | None = None
+    status_code: int | None = None
+    response_time_ms: int | None = None
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class AuditLogListResponse(BaseModel):
+    """Response for GET /admin/audit — list of audit log entries."""
+
+    logs: list[AuditLogResponse]
+    total: int

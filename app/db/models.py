@@ -45,6 +45,7 @@ from datetime import datetime
 
 from pgvector.sqlalchemy import Vector
 from sqlalchemy import (
+    Boolean,
     DateTime,
     Enum,
     Float,
@@ -633,4 +634,235 @@ eval_test_result_passed_idx = Index(
     "idx_eval_test_result_passed",
     EvalTestResult.eval_run_id,
     EvalTestResult.passed,
+)
+
+
+# =============================================================================
+# Authorization & Security (Phase 6)
+# =============================================================================
+#
+# Three tables support the auth layer:
+#
+# api_keys: Bearer token credentials with scopes, rate limits,
+#   and soft-disable. Key material is SHA-256 hashed (never plaintext).
+#
+# api_key_documents: Many-to-many association for document-level ACL.
+#   Only consulted when ApiKey.all_documents_access is False.
+#
+# audit_logs: Immutable compliance trail recording every authenticated
+#   API request (who, what, when, from where).
+#
+# DESIGN DECISION: SHA-256 for key hashing (not bcrypt). API keys are
+# 32-byte random tokens — high entropy makes rainbow tables infeasible.
+# SHA-256 is fast enough for per-request validation without the overhead
+# of bcrypt's deliberate slowness (designed for low-entropy passwords).
+#
+# DESIGN DECISION: Separate api_key_documents table (not JSONB array)
+# for document ACL. Enables SQL JOINs, FK integrity, and efficient
+# reverse lookups ("which keys can access document X?").
+# =============================================================================
+
+
+class ApiKey(Base):
+    """
+    An API key for authenticating requests.
+
+    Each key has a hashed secret (SHA-256), a human-readable prefix
+    for log identification, optional scopes, and optional document ACL.
+    The raw key is only returned once at creation time.
+    """
+
+    __tablename__ = "api_keys"
+
+    id: Mapped[int] = mapped_column(
+        Integer, primary_key=True, autoincrement=True,
+    )
+
+    # Human-readable label (e.g., "frontend-app", "data-team")
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+
+    # First 8 chars of the key for identification in logs
+    key_prefix: Mapped[str] = mapped_column(String(20), nullable=False)
+
+    # SHA-256 hash of the full key — never store plaintext
+    key_hash: Mapped[str] = mapped_column(
+        String(64), nullable=False, unique=True,
+    )
+
+    # Allowed scopes as JSONB array: ["ask", "ingest", ...]
+    # Null or empty = full access (all scopes)
+    scopes: Mapped[list | None] = mapped_column(
+        JSONB, nullable=True, default=list,
+    )
+
+    # Per-key rate limit override (requests per minute)
+    # Null = use settings.rate_limit_rpm default
+    rate_limit_rpm: Mapped[int | None] = mapped_column(
+        Integer, nullable=True,
+    )
+
+    # If True, this key can access ALL documents (bypass ACL)
+    all_documents_access: Mapped[bool] = mapped_column(
+        Boolean, default=True, nullable=False,
+    )
+
+    # Soft-disable without deletion
+    is_active: Mapped[bool] = mapped_column(
+        Boolean, default=True, nullable=False,
+    )
+
+    # Expiration (null = never expires)
+    expires_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True,
+    )
+
+    # Updated on each authenticated request
+    last_used_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True,
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
+
+    # Document ACL relationship
+    allowed_documents: Mapped[list["ApiKeyDocument"]] = relationship(
+        "ApiKeyDocument",
+        back_populates="api_key",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+    )
+
+    def __repr__(self) -> str:
+        return (
+            f"<ApiKey(id={self.id}, name='{self.name}', "
+            f"prefix='{self.key_prefix}', active={self.is_active})>"
+        )
+
+
+class ApiKeyDocument(Base):
+    """
+    Many-to-many association: which API keys can access which documents.
+
+    Only consulted when the parent ApiKey has all_documents_access=False.
+    """
+
+    __tablename__ = "api_key_documents"
+
+    id: Mapped[int] = mapped_column(
+        Integer, primary_key=True, autoincrement=True,
+    )
+    api_key_id: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey("api_keys.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    document_id: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey("documents.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
+
+    api_key: Mapped["ApiKey"] = relationship(
+        "ApiKey", back_populates="allowed_documents",
+    )
+
+
+class AuditLog(Base):
+    """
+    Immutable audit trail for all authenticated API requests.
+
+    Records who accessed what, when, and what they asked.
+    Required for financial compliance — queryable in PostgreSQL.
+    """
+
+    __tablename__ = "audit_logs"
+
+    id: Mapped[int] = mapped_column(
+        Integer, primary_key=True, autoincrement=True,
+    )
+
+    # Which API key made the request (null if auth disabled)
+    api_key_id: Mapped[int | None] = mapped_column(
+        Integer,
+        ForeignKey("api_keys.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+
+    # Key name snapshot — preserved even if key is later deleted
+    api_key_name: Mapped[str | None] = mapped_column(
+        String(200), nullable=True,
+    )
+
+    # Request details
+    endpoint: Mapped[str] = mapped_column(String(200), nullable=False)
+    method: Mapped[str] = mapped_column(String(10), nullable=False)
+    path: Mapped[str] = mapped_column(String(500), nullable=False)
+
+    # Document accessed (extracted from request body/path)
+    document_id: Mapped[int | None] = mapped_column(
+        Integer, nullable=True,
+    )
+
+    # Question asked (for /ask and /compare endpoints)
+    question: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    # Client IP address (IPv6-safe: max 45 chars)
+    client_ip: Mapped[str | None] = mapped_column(
+        String(45), nullable=True,
+    )
+
+    # HTTP response status code
+    status_code: Mapped[int | None] = mapped_column(
+        Integer, nullable=True,
+    )
+
+    # Response time in milliseconds
+    response_time_ms: Mapped[int | None] = mapped_column(
+        Integer, nullable=True,
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
+
+
+# Indexes for auth tables
+api_key_hash_idx = Index(
+    "idx_api_key_hash",
+    ApiKey.key_hash,
+    unique=True,
+)
+
+api_key_prefix_idx = Index(
+    "idx_api_key_prefix",
+    ApiKey.key_prefix,
+)
+
+api_key_document_unique_idx = Index(
+    "idx_api_key_document_unique",
+    ApiKeyDocument.api_key_id,
+    ApiKeyDocument.document_id,
+    unique=True,
+)
+
+audit_log_api_key_idx = Index(
+    "idx_audit_log_api_key_created",
+    AuditLog.api_key_id,
+    AuditLog.created_at,
+)
+
+audit_log_document_idx = Index(
+    "idx_audit_log_document_created",
+    AuditLog.document_id,
+    AuditLog.created_at,
 )

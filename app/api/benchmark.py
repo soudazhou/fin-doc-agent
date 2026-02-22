@@ -29,13 +29,14 @@ import logging
 import time
 from datetime import UTC, datetime, timedelta
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.orchestrator import ask
+from app.api.deps import check_document_access, check_scope, get_current_api_key
 from app.db.engine import get_async_session
-from app.db.models import QueryMetric
+from app.db.models import ApiKey, QueryMetric
 from app.models.requests import BenchmarkRetrievalRequest, CompareRequest
 from app.models.responses import (
     BenchmarkRetrievalResponse,
@@ -71,7 +72,9 @@ router = APIRouter(tags=["Benchmarking"])
     ),
 )
 async def compare_providers(
+    http_request: Request,
     request: CompareRequest,
+    api_key: ApiKey | None = Depends(get_current_api_key),
     session: AsyncSession = Depends(get_async_session),
 ) -> CompareResponse:
     """
@@ -83,6 +86,11 @@ async def compare_providers(
     4. Compute winner summary
     5. Persist QueryMetric rows
     """
+    check_scope(api_key, "benchmark")
+    check_document_access(api_key, request.document_id)
+    http_request.state.audit_document_id = request.document_id
+    http_request.state.audit_question = request.question
+
     wall_start = time.monotonic()
 
     # --- Step 1: Build provider instances (fail fast) ---
@@ -244,6 +252,7 @@ def _compute_winner(results: list[ProviderResult]) -> CompareWinner:
 )
 async def benchmark_retrieval(
     request: BenchmarkRetrievalRequest,
+    api_key: ApiKey | None = Depends(get_current_api_key),
 ) -> BenchmarkRetrievalResponse:
     """
     Retrieval latency benchmark.
@@ -258,6 +267,8 @@ async def benchmark_retrieval(
     same regardless of top_k. This makes the latency measurement fair:
     we're measuring vector search, not embedding.
     """
+    check_scope(api_key, "benchmark")
+    check_document_access(api_key, request.document_id)
     from app.services.embedder import embed_query
     from app.services.vectorstore import get_vector_store
 
@@ -361,6 +372,7 @@ async def get_metrics(
         default=24, ge=1, le=720,
         description="Lookback window in hours",
     ),
+    api_key: ApiKey | None = Depends(get_current_api_key),
     session: AsyncSession = Depends(get_async_session),
 ) -> MetricsResponse:
     """
@@ -371,6 +383,7 @@ async def get_metrics(
     easier to read, test, and extend. At production scale, switch
     to SQL aggregation with time-series indexing.
     """
+    check_scope(api_key, "benchmark")
     cutoff = datetime.now(UTC) - timedelta(hours=hours)
     stmt = select(QueryMetric).where(QueryMetric.created_at >= cutoff)
     result = await session.execute(stmt)

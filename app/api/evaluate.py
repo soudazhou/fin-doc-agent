@@ -31,8 +31,9 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.deps import check_document_access, check_scope, get_current_api_key
 from app.db.engine import get_async_session
-from app.db.models import EvalRun, EvalTestResult
+from app.db.models import ApiKey, EvalRun, EvalTestResult
 from app.models.requests import EvaluateRequest
 from app.models.responses import (
     EvalFailureDetail,
@@ -69,6 +70,7 @@ router = APIRouter(tags=["Evaluation"])
 async def start_evaluation(
     request: EvaluateRequest,
     background_tasks: BackgroundTasks,
+    api_key: ApiKey | None = Depends(get_current_api_key),
     session: AsyncSession = Depends(get_async_session),
 ) -> EvaluateStartResponse:
     """
@@ -79,6 +81,9 @@ async def start_evaluation(
     3. Schedule the full eval in BackgroundTasks
     4. Return the run_id immediately
     """
+    check_scope(api_key, "evaluate")
+    check_document_access(api_key, request.document_id)
+
     # Validate dataset exists before creating the run
     try:
         load_dataset(request.eval_dataset)
@@ -145,6 +150,7 @@ async def get_evaluation_history(
     eval_dataset: str = Query(default="default"),
     provider_id: str | None = Query(default=None),
     limit: int = Query(default=20, ge=1, le=100),
+    api_key: ApiKey | None = Depends(get_current_api_key),
     session: AsyncSession = Depends(get_async_session),
 ) -> EvalHistoryResponse:
     """
@@ -156,6 +162,7 @@ async def get_evaluation_history(
     - "stable": scores within ±0.02 across recent runs
     - "insufficient_data": fewer than 2 completed runs
     """
+    check_scope(api_key, "evaluate")
     stmt = (
         select(EvalRun)
         .where(
@@ -217,6 +224,7 @@ async def get_evaluation_history(
 )
 async def get_evaluation_failures(
     run_id: int = Query(..., description="Evaluation run ID to analyse"),
+    api_key: ApiKey | None = Depends(get_current_api_key),
     session: AsyncSession = Depends(get_async_session),
 ) -> EvalFailuresResponse:
     """
@@ -228,6 +236,7 @@ async def get_evaluation_failures(
     - The full agentic search trace for debugging
     - The retrieved source chunks
     """
+    check_scope(api_key, "evaluate")
     # Load the eval run and its config (for thresholds)
     run_stmt = select(EvalRun).where(EvalRun.id == run_id)
     run_result = await session.execute(run_stmt)
@@ -320,6 +329,7 @@ async def get_evaluation_failures(
 )
 async def get_evaluation_result(
     run_id: int,
+    api_key: ApiKey | None = Depends(get_current_api_key),
     session: AsyncSession = Depends(get_async_session),
 ) -> EvaluateResponse:
     """
@@ -328,6 +338,7 @@ async def get_evaluation_result(
     If the run is still "running", returns a partial response.
     If "completed", includes regression comparison with previous run.
     """
+    check_scope(api_key, "evaluate")
     stmt = select(EvalRun).where(EvalRun.id == run_id)
     result = await session.execute(stmt)
     eval_run = result.scalar_one_or_none()
