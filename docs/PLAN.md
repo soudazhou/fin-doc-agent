@@ -67,7 +67,7 @@ Most RAG demos stop at "ask a question, get an answer." This project goes furthe
 | API | FastAPI + Pydantic V2 | Django REST, Flask | Async-native, auto OpenAPI docs, V2 is 5-50x faster validation |
 | Multi-agent | LangGraph | CrewAI, OpenAI Agents SDK, Claude Agent SDK | Graph-based state machines are most debuggable; conditional routing for fintech workflows |
 | Vector DB | pgvector + Chroma (benchmarked) | Pinecone, Weaviate, Qdrant | Both implemented behind interface; benchmark results drive recommendation (see Vector Store Strategy below) |
-| Embeddings | OpenAI text-embedding-3-small | Nomic Embed V2, Voyage AI | No GPU needed, high quality at low cost, simple API |
+| Embeddings | Provider-agnostic (OpenAI, DashScope, etc.) | Nomic Embed V2, Voyage AI | Configurable `EMBEDDING_BASE_URL` — any OpenAI-compatible embedding API |
 | LLM | Multi-provider (Claude, DeepSeek, Qwen, GLM-5) | Single-vendor lock-in | Provider-agnostic design: cheap models for dev, Claude for demo (see LLM Strategy below) |
 | PDF Parsing | Docling (IBM) | pdfplumber, Camelot, PyMuPDF | Purpose-built for structured docs, understands financial tables |
 | Task Queue | Celery + Redis | FastAPI BackgroundTasks, RQ | Reliability (retries, persistence), monitoring (Flower), scalability |
@@ -631,10 +631,11 @@ Client → Authorization: Bearer sk-abc123...
 - [x] Final README updates — mark Phase 7 complete, add demo script reference
 - [x] Add sample financial PDFs — synthetic Apple Q3 2024 earnings report aligned with golden dataset (`scripts/generate_sample_pdf.py`, `data/samples/apple_q3_2024_earnings.pdf`)
 - [ ] Populate `docs/BENCHMARKS.md` results tables after running benchmarks with real data
-- [ ] Integration smoke tests (require API keys + running services):
-  - [ ] `POST /compare` with two real providers returns side-by-side results
-  - [ ] `POST /benchmark/retrieval` returns latency statistics against ingested chunks
-  - [ ] `GET /metrics` returns aggregated provider stats from `query_metrics` table
+- [x] Integration smoke tests (verified 22 Feb 2026, DashScope Singapore):
+  - [x] `POST /ingest` — Docling parsed 7-page PDF → 6 chunks → embedded (text-embedding-v4, 1536d) → stored in pgvector (~50s on CPU)
+  - [x] `POST /ask` — all 4 capabilities verified: Q&A ($85.8B revenue), summarise (full breakdown), compare (Services +14% vs iPhone -1%), extract (geographic region JSON)
+  - [x] `POST /compare` with qwen-plus vs qwen-turbo — both answered correctly (46.3% gross margin); turbo 2x faster, plus richer citations
+  - [x] `GET /metrics` returns aggregated stats: 12 queries, avg 5.9s latency, $0.002 total cost
 
 ## API Endpoints (Complete)
 
@@ -674,18 +675,33 @@ All pure-logic tests run via `uv run pytest tests/` with zero external dependenc
 
 ### Integration Tests (require API keys + running services)
 
-These are deferred to Phase 7 when the full stack is running with sample data:
+Verified on 22 Feb 2026 using Alibaba Cloud Model Studio (DashScope Singapore region), single API key for both LLM (`qwen-plus`) and embeddings (`text-embedding-v4`).
 
-1. **Ingestion**: Upload 10+ financial PDFs, verify chunks with embeddings at multiple chunk sizes
-2. **Agentic search**: Ask a complex query, verify the search trace shows query rewriting and multi-iteration retrieval
-3. **Multi-capability**: Test all 4 capabilities — Q&A, summarise, compare, extract
-4. **Provider comparison**: Run `POST /compare` with 2+ real providers, verify side-by-side results with latency and cost
-5. **Retrieval benchmark**: Run `POST /benchmark/retrieval` against ingested chunks, verify p50/p95 latency stats
-6. **Metrics dashboard**: Run `GET /metrics` after several queries, verify aggregated stats by provider
-7. **Retrieval accuracy**: Run `/benchmark/retrieval` with 1000+ chunks, verify Recall@5 > 0.85
-8. **Chunk size comparison**: Compare 256/512/1024 token chunks, document which performs best
-9. **Vector store comparison**: Compare pgvector vs Chroma on same dataset, document results
-10. **Evaluation**: Run `/evaluate`, verify all 6 metrics return scores; verify regression tracking
-11. **Feedback loop**: Run eval twice with a pipeline change, verify `/evaluate/history` shows comparison
-12. **Auth**: Verify API key auth, document ACL, and audit logging
-13. **Infrastructure**: `docker compose up` starts all services; Flower dashboard at `localhost:5555`
+1. **Ingestion**: [x] Uploaded Apple Q3 2024 earnings PDF → Docling parsed 7 pages → 6 chunks with 1536d embeddings stored in pgvector (~50s on CPU)
+2. **Agentic search**: [x] Queries trigger multi-iteration search loop with query rewriting; search trace included in responses
+3. **Multi-capability**: [x] All 4 capabilities verified — Q&A ($85.8B revenue), summarise (full financial breakdown), compare (Services +14% vs iPhone -1%), extract (geographic region table as structured JSON)
+4. **Provider comparison**: [x] `POST /compare` with qwen-plus vs qwen-turbo — both answered correctly (46.3% gross margin); turbo 2x faster (4.1s vs 8.1s), plus provided richer multi-source citations
+5. **Retrieval benchmark**: Deferred — requires multiple ingested documents
+6. **Metrics dashboard**: [x] `GET /metrics` returns aggregated stats: 12 queries tracked, avg 5.9s latency, $0.002 total cost, breakdown by provider
+7. **Retrieval accuracy**: Deferred — requires 1000+ chunks from multiple documents
+8. **Chunk size comparison**: Deferred — requires re-ingestion at multiple chunk sizes
+9. **Vector store comparison**: Deferred — requires Chroma service running alongside pgvector
+10. **Evaluation**: Deferred — requires golden dataset aligned with ingested document
+11. **Feedback loop**: Deferred — requires multiple eval runs
+12. **Auth**: Deferred — auth disabled by default for development
+13. **Infrastructure**: [x] `docker compose up` starts all 5 services (app, celery-worker, flower, db, redis); health check OK; Flower dashboard at `localhost:5555`
+
+#### Issues Found & Fixed During Integration Testing
+
+| Issue | Root Cause | Fix | PR |
+|-------|-----------|-----|-----|
+| Build context 1.32GB | No `.dockerignore` | Created `.dockerignore` | #12 |
+| `OSError: README.md not found` | hatchling needs `README.md` during `uv sync` | Added `README.md` to `COPY` line | #12 |
+| `celery: executable file not found` | `uv sync` installs to `.venv`, not system PATH | Prefix all commands with `uv run` | #12 |
+| Host `.venv` overwrites container `.venv` | Volume mount `.:/app` includes macOS `.venv` | Added anonymous volume `- /app/.venv` | #12 |
+| Permission denied on `.venv` | Container `.venv` owned by root, app runs as `appuser` | `chown -R appuser:appuser /app` | #12 |
+| `flower` command not found | `flower` not in production dependencies | `uv add flower` | #12 |
+| `ConnectionRefusedError` in container | `.env` used `localhost` instead of Docker service names | Changed to `db` and `redis` | .env fix |
+| `ImportError: libxcb.so.1` | Docling/OpenCV requires X11 system libraries | Added `libgl1 libglib2.0-0 libxcb1` to Dockerfile | #13 |
+| `expected 1536 dimensions, not 1024` | `text-embedding-v3` defaults to 1024 dims | Switched to `text-embedding-v4`; pass `dimensions` param | Pending |
+| Empty results on valid queries | Similarity threshold 0.7 too aggressive for DashScope embeddings | Lowered `RETRIEVAL_SIMILARITY_THRESHOLD` to 0.45 in `.env` | Pending |

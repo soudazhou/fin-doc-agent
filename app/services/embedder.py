@@ -127,10 +127,14 @@ def embed_batch(
             settings.embedding_model,
         )
 
-        response = client.embeddings.create(
-            model=settings.embedding_model,
-            input=batch,
-        )
+        create_kwargs: dict = {
+            "model": settings.embedding_model,
+            "input": batch,
+        }
+        if settings.embedding_dimensions:
+            create_kwargs["dimensions"] = settings.embedding_dimensions
+
+        response = client.embeddings.create(**create_kwargs)
 
         # DESIGN DECISION: Sort by response.data[j].index to guarantee
         # output order matches input order. The OpenAI API documentation
