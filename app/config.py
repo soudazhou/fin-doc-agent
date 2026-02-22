@@ -206,6 +206,8 @@ class Settings(BaseSettings):
     auth_enabled: bool = False  # Toggle on for production / demo
     rate_limit_rpm: int = 100   # Default requests-per-minute per API key
     audit_logging_enabled: bool = True  # Log all queries for compliance
+    rate_limit_redis_url: str = "redis://localhost:6379/2"  # db 2 (0/1 for Celery)
+    admin_bootstrap_key: str | None = None  # Set in .env for first admin key
 
     # -------------------------------------------------------------------------
     # Pydantic Settings Configuration

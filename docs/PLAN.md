@@ -569,19 +569,56 @@ The JD explicitly calls out "LLM evaluation, monitoring, and reliability." Most 
 - [x] Cross-provider evaluation via provider_id parameter (reuses Phase 4's provider injection)
 - [x] Unit tests: 47 new tests (24 eval metrics + 12 eval runner + 11 golden dataset validation), 107 total
 
-### Phase 6: Authorisation & Security
+### Phase 6: Authorisation & Security (Complete)
 
-Add production-grade access control appropriate for financial data.
+Add production-grade access control appropriate for financial data. Auth is **toggleable** — disabled by default for dev convenience (`auth_enabled=False`). When disabled, all endpoints work exactly as before (no breaking change).
+
+**Auth architecture:**
+
+```
+Client → Authorization: Bearer sk-abc123...
+              │
+              ▼
+      ┌───────────────────────────┐
+      │  get_current_api_key()    │  ← FastAPI Depends()
+      │  SHA-256 hash → DB lookup │
+      │  Validate: active, !expired│
+      │  Rate limit (Redis ZSET)  │
+      └─────────────┬─────────────┘
+                    │
+          ┌─────────▼─────────┐
+          │  check_scope()    │  "ask", "ingest", "evaluate", "admin"
+          │  check_doc_access()│  Document-level ACL
+          └─────────┬─────────┘
+                    │
+              ┌─────▼─────┐
+              │  Endpoint  │
+              └─────┬─────┘
+                    │
+      ┌─────────────▼─────────────┐
+      │  AuditLoggingMiddleware   │  Starlette middleware
+      │  → INSERT audit_logs row  │  (background, non-blocking)
+      └───────────────────────────┘
+```
+
+**Key decisions:**
+
+- SHA-256 hashing for API keys (not bcrypt) — keys are 32-byte random tokens, SHA-256 is secure and fast for high-entropy secrets
+- Separate `api_key_documents` table for document ACL (not JSONB) — enables SQL JOINs and FK integrity
+- Redis sliding window rate limiter (ZSET) with graceful degradation — Redis outage doesn't block the API
+- Audit logging via Starlette middleware — wraps entire request lifecycle, non-blocking writes
 
 **Tasks:**
 
-- [ ] Implement API key authentication middleware (Bearer token)
-- [ ] Add `ApiKey` DB model with scopes and rate limits
-- [ ] Implement document-level access control (which keys can access which documents)
-- [ ] Add audit logging middleware (who queried what document, when, what question)
-- [ ] Implement rate limiting via Redis (per-key, configurable)
-- [ ] Add `/admin/keys` CRUD endpoints for managing API keys
-- [ ] Ensure all sensitive data (embeddings, internal metadata) is never exposed in API responses
+- [x] Add `ApiKey`, `ApiKeyDocument`, `AuditLog` DB models with indexes (`app/db/models.py`)
+- [x] Implement API key generation and SHA-256 hashing (`app/services/auth.py`)
+- [x] Create auth dependency: `get_current_api_key()`, `check_scope()`, `check_document_access()` (`app/api/deps.py`)
+- [x] Implement Redis-based sliding window rate limiter with graceful degradation (`app/services/rate_limiter.py`)
+- [x] Create admin CRUD endpoints: 7 key management + audit log query (`app/api/admin.py`)
+- [x] Create audit logging middleware (`app/api/audit.py`)
+- [x] Integrate auth into all existing endpoints (ask, ingest, benchmark, evaluate) with scope and ACL checks
+- [x] Register admin router and audit middleware (`app/main.py`)
+- [x] Unit tests: 33 new tests (key gen, auth dep, scope, ACL, rate limiter, models), 140 total
 
 ### Phase 7: Polish & Documentation
 
@@ -612,7 +649,14 @@ Add production-grade access control appropriate for financial data.
 | `GET` | `/evaluate/runs/{run_id}` | Get evaluation results + regression comparison | 5 |
 | `GET` | `/evaluate/history` | Evaluation score history and trends | 5 |
 | `GET` | `/evaluate/failures` | Detailed failure analysis with search traces | 5 |
-| `POST` | `/admin/keys` | Create/manage API keys | 6 |
+| `POST` | `/admin/keys` | Create a new API key | 6 |
+| `GET` | `/admin/keys` | List all API keys | 6 |
+| `GET` | `/admin/keys/{key_id}` | Get API key details | 6 |
+| `PATCH` | `/admin/keys/{key_id}` | Update an API key | 6 |
+| `DELETE` | `/admin/keys/{key_id}` | Delete an API key | 6 |
+| `POST` | `/admin/keys/{key_id}/documents` | Grant document access | 6 |
+| `DELETE` | `/admin/keys/{key_id}/documents/{doc_id}` | Revoke document access | 6 |
+| `GET` | `/admin/audit` | Query audit logs | 6 |
 
 ## Verification Plan
 
@@ -623,7 +667,8 @@ All pure-logic tests run via `uv run pytest tests/` with zero external dependenc
 - Pricing registry, provider ID parsing, winner computation, Pydantic validation
 - Chunker, vectorstore (Chroma in-memory), agent classification, LLM injection via mocks
 - Eval metrics (numerical accuracy, retrieval recall@k), eval runner (dataset loading, test case execution, pass/fail), golden dataset validation
-- 107 tests passing as of Phase 5 (60 from Phases 1-4 + 47 new eval tests)
+- Auth: key generation/hashing, auth dependency, scope checking, document ACL, rate limiter, request/response model validation
+- 140 tests passing as of Phase 6 (107 from Phases 1-5 + 33 new auth tests)
 
 ### Integration Tests (require API keys + running services)
 

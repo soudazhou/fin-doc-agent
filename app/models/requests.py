@@ -16,6 +16,9 @@
 # - Native JSON Schema generation for OpenAPI docs
 # =============================================================================
 
+from __future__ import annotations
+
+from datetime import datetime
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -235,4 +238,72 @@ class EvaluateRequest(BaseModel):
             "Provider to evaluate (e.g., 'anthropic/claude-sonnet-4-6'). "
             "If omitted, uses the default configured provider."
         ),
+    )
+
+
+# ---------------------------------------------------------------------------
+# Phase 6: Authorization & Admin Requests
+# ---------------------------------------------------------------------------
+
+
+class CreateApiKeyRequest(BaseModel):
+    """Request body for POST /admin/keys — create a new API key."""
+
+    name: str = Field(
+        ...,
+        min_length=1,
+        max_length=200,
+        description="Human-readable label for the API key",
+    )
+    scopes: list[str] | None = Field(
+        default=None,
+        description=(
+            "Scopes this key can access. "
+            "Null = all scopes (full access). "
+            "Options: ask, ingest, evaluate, benchmark, admin"
+        ),
+    )
+    rate_limit_rpm: int | None = Field(
+        default=None,
+        ge=1,
+        le=10000,
+        description="Requests per minute. Null = use server default.",
+    )
+    all_documents_access: bool = Field(
+        default=True,
+        description="If True, key can access all documents.",
+    )
+    document_ids: list[int] | None = Field(
+        default=None,
+        description=(
+            "Document IDs this key can access. "
+            "Only used when all_documents_access=False."
+        ),
+    )
+    expires_at: datetime | None = Field(
+        default=None,
+        description="Expiration timestamp. Null = never expires.",
+    )
+
+
+class UpdateApiKeyRequest(BaseModel):
+    """Request body for PATCH /admin/keys/{key_id} — partial update."""
+
+    name: str | None = Field(default=None, max_length=200)
+    scopes: list[str] | None = None
+    rate_limit_rpm: int | None = Field(
+        default=None, ge=1, le=10000,
+    )
+    all_documents_access: bool | None = None
+    is_active: bool | None = None
+    expires_at: datetime | None = None
+
+
+class GrantDocumentAccessRequest(BaseModel):
+    """Request body for POST /admin/keys/{key_id}/documents."""
+
+    document_ids: list[int] = Field(
+        ...,
+        min_length=1,
+        description="Document IDs to grant access to.",
     )

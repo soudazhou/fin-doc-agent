@@ -175,7 +175,11 @@ uv run celery -A app.workers.celery_app worker --loglevel=info
 | `POST` | `/evaluate` | Run evaluation suite against golden dataset |
 | `GET` | `/evaluate/history` | Evaluation score trends over time |
 | `GET` | `/evaluate/failures` | Detailed failure analysis for debugging |
-| `POST` | `/admin/keys` | Manage API keys and access control |
+| `POST` | `/admin/keys` | Create a new API key |
+| `GET` | `/admin/keys` | List all API keys |
+| `PATCH` | `/admin/keys/{key_id}` | Update an API key |
+| `DELETE` | `/admin/keys/{key_id}` | Delete an API key |
+| `GET` | `/admin/audit` | Query audit logs |
 
 ### Example Usage
 
@@ -217,14 +221,17 @@ fin-doc-agent/
 │   │   ├── ingest.py           # Document upload & status
 │   │   ├── ask.py              # Agentic search + answer
 │   │   ├── benchmark.py         # A/B comparison, retrieval benchmark, metrics
-│   │   └── evaluate.py         # Evaluation suite (run, history, failures)
+│   │   ├── evaluate.py         # Evaluation suite (run, history, failures)
+│   │   ├── admin.py            # API key CRUD & audit log query
+│   │   ├── audit.py            # Audit logging middleware
+│   │   └── deps.py             # Auth dependencies (Bearer token, scope, ACL)
 │   ├── agents/                 # LangGraph multi-agent system
 │   │   ├── orchestrator.py     # Intent classification & routing
 │   │   ├── search.py           # Agentic search loop
 │   │   └── analyst.py          # LLM reasoning (multi-capability)
 │   ├── db/                     # Database layer
 │   │   ├── engine.py           # Async SQLAlchemy engine
-│   │   └── models.py           # ORM models (Document, Chunk, QueryMetric, EvalRun, EvalTestResult)
+│   │   └── models.py           # ORM models (Document, Chunk, QueryMetric, EvalRun, EvalTestResult, ApiKey, AuditLog)
 │   ├── models/                 # Pydantic V2 schemas
 │   │   ├── requests.py         # API request validation
 │   │   └── responses.py        # API response serialization
@@ -236,12 +243,15 @@ fin-doc-agent/
 │   │   ├── embedder.py         # Embedding generation (OpenAI)
 │   │   ├── eval_runner.py       # RAG evaluation orchestration (dataset loading, test execution, scoring)
 │   │   ├── eval_metrics.py     # Custom eval metrics (numerical accuracy, retrieval recall@k)
-│   │   └── pricing.py          # Provider pricing registry
+│   │   ├── pricing.py          # Provider pricing registry
+│   │   ├── auth.py             # API key generation & SHA-256 hashing
+│   │   └── rate_limiter.py     # Redis-based sliding window rate limiter
 │   └── workers/                # Background processing
 │       ├── celery_app.py       # Celery configuration
 │       └── tasks.py            # Ingestion pipeline task
 ├── tests/
 │   ├── test_agents.py           # Unit tests for agents (classification, analyst, search)
+│   ├── test_auth.py            # Unit tests for auth (key gen, deps, scope, ACL, rate limiter)
 │   ├── test_benchmark.py       # Unit tests for benchmarking (pricing, provider parsing, winner)
 │   ├── test_chunker.py         # Unit tests for token-based chunking
 │   ├── test_vectorstore.py     # Unit tests for ChromaDB vector store
@@ -276,7 +286,7 @@ Key architectural decisions are documented in two places:
 - [x] **Phase 3**: Agentic search & multi-capability agents — autonomous search loop, 4 capabilities
 - [x] **Phase 4**: A/B comparison & benchmarking — provider comparison, retrieval latency, cost tracking
 - [x] **Phase 5**: Evaluation & feedback loops — golden dataset, 6 metrics, regression tracking, failure analysis
-- [ ] **Phase 6**: Authorisation — API keys, document ACL, audit logging, rate limiting
+- [x] **Phase 6**: Authorisation — API keys, document ACL, audit logging, rate limiting
 - [ ] **Phase 7**: Polish — sample data, demo script, benchmark documentation
 
 ## Running Tests

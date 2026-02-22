@@ -25,11 +25,12 @@ from __future__ import annotations
 import logging
 import time
 
-from fastapi import APIRouter, BackgroundTasks, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 
 from app.agents.orchestrator import ask
+from app.api.deps import check_document_access, check_scope, get_current_api_key
 from app.db.engine import async_session_factory
-from app.db.models import QueryMetric
+from app.db.models import ApiKey, QueryMetric
 from app.models.requests import AskRequest
 from app.models.responses import AskResponse, SourceChunk
 from app.services.pricing import estimate_cost
@@ -56,8 +57,10 @@ router = APIRouter(tags=["Question Answering"])
     ),
 )
 async def ask_endpoint(
+    http_request: Request,
     request: AskRequest,
     background_tasks: BackgroundTasks,
+    api_key: ApiKey | None = Depends(get_current_api_key),
 ) -> AskResponse:
     """
     Invoke the LangGraph agent graph to answer a financial document question.
@@ -73,6 +76,14 @@ async def ask_endpoint(
     - LLM API errors → 502 Bad Gateway
     - No results → 200 with "no relevant info" message (not an error)
     """
+    # Auth: scope + document access check
+    check_scope(api_key, "ask")
+    check_document_access(api_key, request.document_id)
+
+    # Audit context
+    http_request.state.audit_document_id = request.document_id
+    http_request.state.audit_question = request.question
+
     logger.info(
         "Ask request: question='%s', document_id=%s, capability=%s",
         request.question[:80],

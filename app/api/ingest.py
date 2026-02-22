@@ -29,12 +29,13 @@ import logging
 from pathlib import Path
 
 from celery.result import AsyncResult
-from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.deps import check_scope, get_current_api_key
 from app.config import settings
 from app.db.engine import get_async_session
-from app.db.models import Document, DocumentStatus
+from app.db.models import ApiKey, Document, DocumentStatus
 from app.models.responses import DocumentResponse, IngestResponse, IngestStatusResponse
 from app.workers.tasks import ingest_document
 
@@ -60,6 +61,7 @@ router = APIRouter(tags=["Ingestion"])
     ),
 )
 async def ingest_document_endpoint(
+    http_request: Request,
     file: UploadFile = File(
         ...,
         description="PDF file to ingest (financial report, 10-K, earnings, etc.)",
@@ -81,6 +83,7 @@ async def ingest_document_endpoint(
             "Override chunk overlap in tokens. Defaults to config value (50)."
         ),
     ),
+    api_key: ApiKey | None = Depends(get_current_api_key),
     session: AsyncSession = Depends(get_async_session),
 ) -> IngestResponse:
     """
@@ -90,6 +93,9 @@ async def ingest_document_endpoint(
     and a Celery task is dispatched for async processing. The response
     includes a task_id for polling the processing status.
     """
+    # Auth: scope check (no document ACL — creating a new doc)
+    check_scope(api_key, "ingest")
+
     # --- Validate file type ---
     if not file.filename or not file.filename.lower().endswith(".pdf"):
         raise HTTPException(
@@ -177,6 +183,7 @@ async def ingest_document_endpoint(
 )
 async def get_ingest_status(
     task_id: str,
+    api_key: ApiKey | None = Depends(get_current_api_key),
     session: AsyncSession = Depends(get_async_session),
 ) -> IngestStatusResponse:
     """
@@ -192,6 +199,8 @@ async def get_ingest_status(
     - FAILURE: Ingestion failed (check error field)
     - RETRY: Task is being retried after a failure
     """
+    check_scope(api_key, "ingest")
+
     # --- Check Celery task status ---
     result = AsyncResult(task_id, app=ingest_document.app)
     status = result.status
