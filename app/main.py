@@ -34,6 +34,7 @@ from pathlib import Path
 from fastapi import FastAPI
 
 from app.api.ask import router as ask_router
+from app.api.benchmark import router as benchmark_router
 from app.api.ingest import router as ingest_router
 from app.config import settings
 from app.db.engine import async_engine
@@ -133,10 +134,11 @@ app = FastAPI(
 #
 # Phase 2: Document ingestion (upload, parse, chunk, embed, store)
 # Phase 3: Question answering (/ask)
-# Phase 4: Evaluation (/evaluate) — to be added
+# Phase 4: Benchmarking & comparison (/compare, /benchmark, /metrics)
 # ---------------------------------------------------------------------------
 app.include_router(ingest_router)
 app.include_router(ask_router)
+app.include_router(benchmark_router)
 
 
 # ---------------------------------------------------------------------------

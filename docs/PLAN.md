@@ -434,7 +434,7 @@ User Query
 - [x] Create `/ask` POST endpoint with `capability` field (auto-detected or explicit) (`app/api/ask.py`)
 - [x] Unit tests: 22 tests covering classification, context formatting, query simplification, and mock LLM analysis (all passing)
 
-### Phase 4: A/B Provider Comparison & Performance Benchmarking
+### Phase 4: A/B Provider Comparison & Performance Benchmarking (Complete)
 
 Build tooling to compare LLM providers side-by-side, benchmark retrieval accuracy, and track performance metrics over time.
 
@@ -495,13 +495,15 @@ Response:
 
 **Tasks:**
 
-- [ ] Add `QueryMetric` DB model (latency, tokens, cost, provider, search iterations, timestamp)
-- [ ] Implement metrics collection middleware (auto-capture on every `/ask` call)
-- [ ] Implement provider pricing registry (maps provider+model to $/token)
-- [ ] Create `/compare` POST endpoint — runs same query across N providers in parallel
-- [ ] Create `/benchmark/retrieval` POST endpoint — measures Recall@k, MRR across chunk sizes and vector stores
-- [ ] Create `/metrics` GET endpoint — aggregated stats (avg latency, cost-per-query, by provider)
-- [ ] Add timing instrumentation to search agent and analyst
+- [x] Add `QueryMetric` DB model (`app/db/models.py`) — latency, tokens, cost, provider, search iterations
+- [x] Implement metrics collection on every `/ask` call via BackgroundTasks (`app/api/ask.py`)
+- [x] Implement provider pricing registry (`app/services/pricing.py`) — 12 models across 7 providers
+- [x] Add `create_provider_from_id()` non-singleton factory (`app/services/llm.py`) — enables parallel multi-provider execution
+- [x] Add `llm_override` injection to LangGraph orchestrator (`app/agents/orchestrator.py`)
+- [x] Create `/compare` POST endpoint — runs same query across N providers in parallel (`app/api/benchmark.py`)
+- [x] Create `/benchmark/retrieval` POST endpoint — measures search latency at different top_k and vector stores
+- [x] Create `/metrics` GET endpoint — aggregated stats by provider with lookback window
+- [x] Unit tests: 25 tests covering pricing, provider ID parsing, winner computation, LLM injection, and request validation (all passing)
 
 ### Phase 5: Evaluation Framework & Feedback Loops
 

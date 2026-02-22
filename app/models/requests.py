@@ -90,6 +90,115 @@ class AskRequest(BaseModel):
     )
 
 
+# ---------------------------------------------------------------------------
+# Phase 4: Benchmarking & Comparison Requests
+# ---------------------------------------------------------------------------
+
+
+class CompareRequest(BaseModel):
+    """
+    Request body for POST /compare — run same query across multiple providers.
+
+    DESIGN DECISION: Provider IDs are strings (not full config objects).
+    API keys are read from server-side env only — never from request bodies.
+    The provider_id format is self-describing: "type/model@base_url".
+    """
+
+    question: str = Field(
+        ...,
+        min_length=3,
+        max_length=2000,
+        description="The question to run across all providers",
+    )
+    document_id: int | None = Field(
+        default=None,
+        description="Restrict search to a specific document. Null = all.",
+    )
+    capability: Literal["qa", "summarise", "compare", "extract"] | None = Field(
+        default=None,
+        description="Agent capability override. Auto-detected if omitted.",
+    )
+    providers: list[str] = Field(
+        ...,
+        min_length=2,
+        max_length=5,
+        description=(
+            "Provider IDs to compare. Format: 'type/model' or "
+            "'type/model@base_url'. Min 2, max 5."
+        ),
+    )
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "examples": [
+                {
+                    "question": "What was total revenue in Q3 2024?",
+                    "document_id": 1,
+                    "providers": [
+                        "anthropic/claude-sonnet-4-6",
+                        "openai_compatible/deepseek-chat@https://api.deepseek.com/v1",
+                    ],
+                }
+            ]
+        }
+    )
+
+
+class BenchmarkRetrievalRequest(BaseModel):
+    """
+    Request body for POST /benchmark/retrieval — measure search latency.
+
+    Benchmarks retrieval LATENCY across existing chunks, not Recall@k
+    (which requires a golden dataset — deferred to Phase 5).
+
+    DESIGN DECISION: Does not re-ingest at different chunk sizes.
+    Use POST /ingest?chunk_size=256 separately, then benchmark.
+    """
+
+    document_id: int | None = Field(
+        default=None,
+        description="Document to benchmark against. Null = all.",
+    )
+    sample_queries: list[str] = Field(
+        default=[
+            "total revenue",
+            "operating expenses",
+            "risk factors",
+            "earnings per share",
+            "cash flow from operations",
+        ],
+        min_length=1,
+        max_length=20,
+        description="Queries to benchmark. Defaults to 5 financial templates.",
+    )
+    top_k_values: list[int] = Field(
+        default=[3, 5, 10],
+        description="Values of k to test in retrieval.",
+    )
+    vector_stores: list[Literal["pgvector", "chroma"]] = Field(
+        default=["pgvector"],
+        description="Vector stores to benchmark.",
+    )
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "examples": [
+                {
+                    "document_id": 1,
+                    "sample_queries": ["total revenue", "risk factors"],
+                    "top_k_values": [5, 10],
+                    "vector_stores": ["pgvector"],
+                }
+            ]
+        }
+    )
+
+
+# ---------------------------------------------------------------------------
+# Phase 5: Evaluation Requests
+# ---------------------------------------------------------------------------
+
+
 class EvaluateRequest(BaseModel):
     """
     Request body for POST /evaluate — Run RAG evaluation suite.

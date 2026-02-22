@@ -43,7 +43,7 @@ from typing_extensions import TypedDict
 
 from app.agents.analyst import AnalysisResult, analyse
 from app.agents.search import SearchResult, agentic_search
-from app.services.llm import get_llm_provider
+from app.services.llm import LLMProvider, get_llm_provider
 
 logger = logging.getLogger(__name__)
 
@@ -66,6 +66,17 @@ class AgentState(TypedDict, total=False):
     document_id: int | None
     capability: str | None  # User-provided, or None for auto-classification
 
+    # --- LLM injection (Phase 4) ---
+    # When set, nodes use this provider instead of the global singleton.
+    # This enables the /compare endpoint to run the same query across
+    # multiple providers in parallel, each with its own LLM instance.
+    # DESIGN DECISION: Provider object in state rather than a string ID.
+    # Nodes need the object to call complete(), and re-parsing the string
+    # in every node would duplicate factory logic.
+    # NOTE: Not JSON-serialisable. Safe as long as no checkpointer is
+    # configured on the graph (current: no checkpointer).
+    llm_override: LLMProvider | None
+
     # --- Intermediate (set by nodes) ---
     classified_capability: str  # Always set after classify node
     search_result: SearchResult | None
@@ -76,6 +87,8 @@ class AgentState(TypedDict, total=False):
     sources: list[dict[str, Any]]
     model: str
     retrieval_count: int
+    input_tokens: int   # Phase 4: for cost calculation in /compare
+    output_tokens: int  # Phase 4: for cost calculation in /compare
 
 
 # ---------------------------------------------------------------------------
@@ -123,7 +136,8 @@ async def search_node(state: AgentState) -> dict:
     retrieval quality, and refines the query if needed (up to
     max_search_iterations).
     """
-    llm = get_llm_provider()
+    # Use injected provider if present, otherwise fall back to singleton
+    llm = state.get("llm_override") or get_llm_provider()
 
     result = await agentic_search(
         question=state["question"],
@@ -146,7 +160,8 @@ async def analyse_node(state: AgentState) -> dict:
     Takes the retrieved chunks and capability, calls the LLM with
     the appropriate system prompt, and maps the result to output fields.
     """
-    llm = get_llm_provider()
+    # Use injected provider if present, otherwise fall back to singleton
+    llm = state.get("llm_override") or get_llm_provider()
     search_result: SearchResult | None = state.get("search_result")
     chunks = search_result.chunks if search_result else []
 
@@ -175,6 +190,8 @@ async def analyse_node(state: AgentState) -> dict:
         "sources": sources,
         "model": result.model,
         "retrieval_count": len(chunks),
+        "input_tokens": result.input_tokens,
+        "output_tokens": result.output_tokens,
     }
 
 
@@ -207,6 +224,7 @@ async def ask(
     question: str,
     document_id: int | None = None,
     capability: str | None = None,
+    llm: LLMProvider | None = None,
 ) -> AgentState:
     """
     Entry point: invoke the agent graph and return the final state.
@@ -218,6 +236,9 @@ async def ask(
         question: The user's question.
         document_id: Optional document to search within.
         capability: Optional explicit capability override.
+        llm: Optional LLM provider override. When provided, the graph
+            nodes use this instead of the global singleton. Used by
+            the /compare endpoint to run multiple providers in parallel.
 
     Returns:
         The final AgentState with answer, sources, model, etc.
@@ -227,6 +248,8 @@ async def ask(
         "document_id": document_id,
         "capability": capability,
     }
+    if llm is not None:
+        initial_state["llm_override"] = llm
 
     logger.info(
         "Invoking agent graph: question='%s', document_id=%s, "

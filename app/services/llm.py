@@ -28,7 +28,8 @@
 #   │   └── complete()          — system prompt as top-level kwarg
 #   ├── OpenAICompatibleProvider — Any OpenAI-compatible API
 #   │   └── complete()          — system prompt as message role
-#   └── get_llm_provider()      — Factory, reads from config
+#   ├── get_llm_provider()      — Singleton factory, reads from config
+#   └── create_provider_from_id() — Non-singleton factory for /compare
 # =============================================================================
 
 from __future__ import annotations
@@ -115,20 +116,29 @@ class AnthropicProvider:
     KEY API DIFFERENCE: Anthropic takes system prompts as a top-level
     `system=` kwarg, NOT as a message with role "system". This is the
     opposite of OpenAI's pattern and a common source of bugs.
+
+    DESIGN DECISION (Phase 4): Constructor accepts optional kwargs for
+    api_key and model, enabling create_provider_from_id() to build
+    fresh instances for /compare without touching the global singleton.
+    No-arg construction still reads from settings (backward-compatible).
     """
 
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        api_key: str | None = None,
+        model: str | None = None,
+    ) -> None:
         from anthropic import AsyncAnthropic
 
-        api_key = settings.llm_api_key or settings.anthropic_api_key
-        if not api_key:
+        resolved_key = api_key or settings.llm_api_key or settings.anthropic_api_key
+        if not resolved_key:
             raise ValueError(
                 "No Anthropic API key configured. Set LLM_API_KEY or "
                 "ANTHROPIC_API_KEY in .env"
             )
 
-        self._client = AsyncAnthropic(api_key=api_key)
-        self._model = settings.llm_model
+        self._client = AsyncAnthropic(api_key=resolved_key)
+        self._model = model or settings.llm_model
         self._temperature = settings.llm_temperature
         self._max_tokens = settings.llm_max_tokens
 
@@ -190,31 +200,40 @@ class OpenAICompatibleProvider:
         LLM_BASE_URL=https://api.deepseek.com/v1
         LLM_API_KEY=your-key
         LLM_MODEL=deepseek-chat
+
+    DESIGN DECISION (Phase 4): Constructor accepts optional kwargs for
+    api_key, model, and base_url for the same reason as AnthropicProvider.
     """
 
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        api_key: str | None = None,
+        model: str | None = None,
+        base_url: str | None = None,
+    ) -> None:
         from openai import AsyncOpenAI
 
-        api_key = settings.llm_api_key or settings.openai_api_key
-        if not api_key:
+        resolved_key = api_key or settings.llm_api_key or settings.openai_api_key
+        if not resolved_key:
             raise ValueError(
                 "No API key configured for OpenAI-compatible provider. "
                 "Set LLM_API_KEY in .env"
             )
 
-        kwargs: dict = {"api_key": api_key}
-        if settings.llm_base_url:
-            kwargs["base_url"] = settings.llm_base_url
+        client_kwargs: dict = {"api_key": resolved_key}
+        resolved_base_url = base_url or settings.llm_base_url
+        if resolved_base_url:
+            client_kwargs["base_url"] = resolved_base_url
 
-        self._client = AsyncOpenAI(**kwargs)
-        self._model = settings.llm_model
+        self._client = AsyncOpenAI(**client_kwargs)
+        self._model = model or settings.llm_model
         self._temperature = settings.llm_temperature
         self._max_tokens = settings.llm_max_tokens
 
         logger.info(
             "Initialized OpenAICompatibleProvider (model=%s, base_url=%s)",
             self._model,
-            settings.llm_base_url or "https://api.openai.com/v1",
+            resolved_base_url or "https://api.openai.com/v1",
         )
 
     async def complete(
@@ -280,3 +299,93 @@ def get_llm_provider() -> AnthropicProvider | OpenAICompatibleProvider:
         else:
             _provider = AnthropicProvider()
     return _provider
+
+
+# ---------------------------------------------------------------------------
+# Non-Singleton Factory — For /compare (Phase 4)
+# ---------------------------------------------------------------------------
+# The /compare endpoint needs to run the same query across N different
+# providers in parallel. Each provider needs its own client instance
+# (different API keys, base URLs, models). This factory creates fresh
+# instances without touching the global singleton.
+#
+# DESIGN DECISION: Separate from get_llm_provider() because the
+# singleton factory serves normal /ask traffic (one provider, reused).
+# This factory serves /compare traffic (multiple providers, ephemeral).
+# Mixing them would require resetting the singleton on every comparison.
+# ---------------------------------------------------------------------------
+
+
+_KNOWN_PROVIDER_TYPES = {"anthropic", "openai_compatible"}
+
+
+def _parse_provider_id(
+    provider_id: str,
+) -> tuple[str, str, str | None]:
+    """
+    Parse a provider_id string into (provider_type, model, base_url).
+
+    Formats supported:
+        "anthropic/claude-sonnet-4-6"
+            → ("anthropic", "claude-sonnet-4-6", None)
+        "openai_compatible/deepseek-chat"
+            → ("openai_compatible", "deepseek-chat", None)
+        "openai_compatible/deepseek-chat@https://api.deepseek.com/v1"
+            → ("openai_compatible", "deepseek-chat", "https://api.deepseek.com/v1")
+
+    Raises:
+        ValueError: If the format is unrecognisable or provider type unknown.
+    """
+    if "/" not in provider_id:
+        raise ValueError(
+            f"Invalid provider_id '{provider_id}'. "
+            "Expected format: 'provider_type/model' or "
+            "'provider_type/model@base_url'"
+        )
+
+    provider_type, rest = provider_id.split("/", 1)
+
+    base_url: str | None = None
+    if "@" in rest:
+        model, base_url = rest.split("@", 1)
+    else:
+        model = rest
+
+    if provider_type not in _KNOWN_PROVIDER_TYPES:
+        raise ValueError(
+            f"Unknown provider type '{provider_type}'. "
+            f"Supported types: {sorted(_KNOWN_PROVIDER_TYPES)}"
+        )
+
+    return provider_type, model, base_url
+
+
+def create_provider_from_id(
+    provider_id: str,
+    api_key: str | None = None,
+) -> AnthropicProvider | OpenAICompatibleProvider:
+    """
+    Create a fresh, non-singleton LLM provider from a provider ID string.
+
+    Used by the /compare endpoint to instantiate multiple providers
+    for parallel execution. Each call returns an independent instance.
+
+    Args:
+        provider_id: Provider string (see _parse_provider_id for format).
+        api_key: Optional API key override. If None, reads from env.
+
+    Returns:
+        A new provider instance (AnthropicProvider or OpenAICompatibleProvider).
+
+    Raises:
+        ValueError: If provider_id is invalid or API key is missing.
+    """
+    provider_type, model, base_url = _parse_provider_id(provider_id)
+
+    if provider_type == "anthropic":
+        return AnthropicProvider(api_key=api_key, model=model)
+
+    # openai_compatible
+    return OpenAICompatibleProvider(
+        api_key=api_key, model=model, base_url=base_url,
+    )
