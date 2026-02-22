@@ -243,6 +243,8 @@ fin-doc-agent/
 │       ├── celery_app.py       # Celery configuration
 │       └── tasks.py            # Ingestion pipeline task
 ├── tests/
+│   ├── test_chunker.py         # Unit tests for token-based chunking
+│   ├── test_vectorstore.py     # Unit tests for ChromaDB vector store
 │   └── eval/                   # Evaluation test suite & golden dataset
 ├── data/
 │   └── samples/                # Sample financial PDFs
@@ -265,7 +267,7 @@ Key architectural decisions are documented in two places:
 ## Implementation Roadmap
 
 - [x] **Phase 1**: Project scaffolding — FastAPI, Docker, DB models, config
-- [ ] **Phase 2**: Document ingestion — PDF parsing, configurable chunking, pluggable vector store
+- [x] **Phase 2**: Document ingestion — PDF parsing, configurable chunking, pluggable vector store
 - [ ] **Phase 3**: Agentic search & multi-capability agents — autonomous search loop, 4 capabilities
 - [ ] **Phase 4**: A/B comparison & benchmarking — provider comparison, retrieval accuracy, chunk size optimisation
 - [ ] **Phase 5**: Evaluation & feedback loops — golden dataset, 6 metrics, regression tracking, failure analysis
