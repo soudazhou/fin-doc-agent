@@ -131,6 +131,122 @@ class AskResponse(BaseModel):
     )
 
 
+# ---------------------------------------------------------------------------
+# Phase 4: Benchmarking & Comparison Responses
+# ---------------------------------------------------------------------------
+
+
+class ProviderResult(BaseModel):
+    """Result from a single provider leg of POST /compare."""
+
+    provider_id: str = Field(
+        description="Provider identifier (e.g., 'anthropic/claude-sonnet-4-6')",
+    )
+    answer: str = Field(description="The generated answer")
+    sources: list[SourceChunk] = Field(description="Retrieved source chunks")
+    model: str = Field(description="Actual model name returned by the API")
+    latency_ms: int = Field(description="End-to-end latency in milliseconds")
+    input_tokens: int = Field(description="Input tokens consumed")
+    output_tokens: int = Field(description="Output tokens generated")
+    estimated_cost_usd: float | None = Field(
+        default=None,
+        description="Estimated cost in USD. Null if model not in pricing registry.",
+    )
+    search_iterations: int = Field(
+        description="Number of agentic search iterations",
+    )
+    retrieval_count: int = Field(description="Number of chunks retrieved")
+    error: str | None = Field(
+        default=None,
+        description="Error message if this provider leg failed.",
+    )
+
+
+class CompareWinner(BaseModel):
+    """Summary of which provider 'won' on each dimension."""
+
+    fastest_provider: str | None = Field(
+        default=None, description="Provider with lowest latency_ms",
+    )
+    cheapest_provider: str | None = Field(
+        default=None,
+        description="Provider with lowest estimated_cost_usd",
+    )
+
+
+class CompareResponse(BaseModel):
+    """Response for POST /compare — side-by-side provider results."""
+
+    question: str
+    document_id: int | None
+    results: list[ProviderResult]
+    winner: CompareWinner
+    total_latency_ms: int = Field(
+        description="Wall-clock time for all providers (parallel execution)",
+    )
+
+
+class RetrievalBenchmarkResult(BaseModel):
+    """Result for a single (vector_store, top_k) combination."""
+
+    vector_store: str
+    top_k: int
+    avg_latency_ms: float = Field(description="Average search latency (ms)")
+    p50_latency_ms: float = Field(description="Median search latency (ms)")
+    p95_latency_ms: float = Field(
+        description="95th percentile search latency (ms)",
+    )
+    avg_top_score: float = Field(
+        description="Average similarity score of the top result",
+    )
+    queries_run: int = Field(description="Number of sample queries executed")
+
+
+class BenchmarkRetrievalResponse(BaseModel):
+    """Response for POST /benchmark/retrieval."""
+
+    document_id: int | None
+    results: list[RetrievalBenchmarkResult]
+    sample_queries: list[str]
+    summary: str = Field(
+        description="Human-readable summary of results",
+    )
+
+
+class ProviderMetricSummary(BaseModel):
+    """Aggregated metrics for a single provider in GET /metrics."""
+
+    provider_id: str | None = Field(
+        description="Provider identifier. Null for /ask calls.",
+    )
+    query_count: int
+    avg_latency_ms: float | None = None
+    p50_latency_ms: float | None = None
+    p95_latency_ms: float | None = None
+    avg_input_tokens: float | None = None
+    avg_output_tokens: float | None = None
+    total_estimated_cost_usd: float | None = None
+    avg_cost_per_query_usd: float | None = None
+    avg_search_iterations: float | None = None
+
+
+class MetricsResponse(BaseModel):
+    """Response for GET /metrics — aggregated performance stats."""
+
+    total_queries: int
+    time_range_hours: int = Field(
+        description="Lookback window for the aggregation",
+    )
+    by_provider: list[ProviderMetricSummary]
+    overall_avg_latency_ms: float | None = None
+    overall_total_cost_usd: float | None = None
+
+
+# ---------------------------------------------------------------------------
+# Phase 5: Evaluation Responses
+# ---------------------------------------------------------------------------
+
+
 class EvalMetric(BaseModel):
     """
     A single evaluation metric result.

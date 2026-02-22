@@ -47,6 +47,7 @@ from pgvector.sqlalchemy import Vector
 from sqlalchemy import (
     DateTime,
     Enum,
+    Float,
     ForeignKey,
     Index,
     Integer,
@@ -294,4 +295,122 @@ chunk_embedding_idx = Index(
 chunk_document_idx = Index(
     "idx_chunk_document_id",
     Chunk.document_id,
+)
+
+
+# =============================================================================
+# Query Metrics — Per-Query Performance Telemetry (Phase 4)
+# =============================================================================
+#
+# Every call to POST /ask (and each provider leg of POST /compare)
+# writes one row. This enables:
+# - Latency tracking over time
+# - Cost accounting per provider
+# - Retrieval quality monitoring (score distributions)
+# - Agentic search efficiency (iterations required)
+#
+# DESIGN DECISION: Stored in PostgreSQL (not a time-series DB) because:
+# 1. No extra infra — PostgreSQL is already in the stack
+# 2. Volume is low (queries/minute, not queries/second)
+# 3. We can JOIN against documents and chunks for richer analysis
+# 4. Phase 5 will JOIN eval results against query metrics
+#
+# DESIGN DECISION: Nullable columns for fields that only exist in
+# certain contexts. Regular /ask calls don't carry a provider_id label
+# (they use whatever the singleton resolves to).
+# =============================================================================
+
+
+class QueryMetric(Base):
+    """Per-query performance and cost telemetry."""
+
+    __tablename__ = "query_metrics"
+
+    id: Mapped[int] = mapped_column(
+        Integer, primary_key=True, autoincrement=True,
+    )
+
+    # Which document was queried (null = all documents searched)
+    document_id: Mapped[int | None] = mapped_column(
+        Integer,
+        ForeignKey("documents.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+
+    # The question asked
+    question: Mapped[str] = mapped_column(Text, nullable=False)
+
+    # Capability selected (qa, summarise, compare, extract)
+    capability: Mapped[str | None] = mapped_column(
+        String(50), nullable=True,
+    )
+
+    # Provider identifier in "type/model" format
+    # e.g. "anthropic/claude-sonnet-4-6"
+    # Null for /ask calls using the global singleton
+    provider_id: Mapped[str | None] = mapped_column(
+        String(200), nullable=True,
+    )
+
+    # Actual model name returned by the LLM API
+    model: Mapped[str | None] = mapped_column(
+        String(200), nullable=True,
+    )
+
+    # --- Latency (milliseconds) ---
+    total_latency_ms: Mapped[int | None] = mapped_column(
+        Integer, nullable=True,
+    )
+
+    # --- Token counts ---
+    input_tokens: Mapped[int | None] = mapped_column(
+        Integer, nullable=True,
+    )
+    output_tokens: Mapped[int | None] = mapped_column(
+        Integer, nullable=True,
+    )
+
+    # --- Cost (USD, estimated from pricing registry) ---
+    estimated_cost_usd: Mapped[float | None] = mapped_column(
+        Float, nullable=True,
+    )
+
+    # --- Agentic search stats ---
+    search_iterations: Mapped[int | None] = mapped_column(
+        Integer, nullable=True,
+    )
+    retrieval_count: Mapped[int | None] = mapped_column(
+        Integer, nullable=True,
+    )
+
+    # Similarity scores (JSONB list of floats, one per retrieved chunk)
+    # DESIGN DECISION: JSONB rather than a separate table — we only
+    # ever read these as a batch for percentile stats.
+    retrieval_scores: Mapped[dict | None] = mapped_column(
+        JSONB, nullable=True,
+    )
+
+    # Source: "ask" (regular /ask call) or "compare" (/compare leg)
+    source: Mapped[str] = mapped_column(
+        String(50), nullable=False, default="ask",
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
+
+    def __repr__(self) -> str:
+        return (
+            f"<QueryMetric(id={self.id}, provider={self.provider_id}, "
+            f"latency={self.total_latency_ms}ms)>"
+        )
+
+
+# Supports /metrics queries: filter by provider, sort by time
+query_metric_provider_idx = Index(
+    "idx_query_metric_provider_created",
+    QueryMetric.provider_id,
+    QueryMetric.created_at,
 )

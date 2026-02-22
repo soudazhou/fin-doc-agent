@@ -244,6 +244,7 @@ fin-doc-agent/
 │       └── tasks.py            # Ingestion pipeline task
 ├── tests/
 │   ├── test_agents.py           # Unit tests for agents (classification, analyst, search)
+│   ├── test_benchmark.py       # Unit tests for benchmarking (pricing, provider parsing, winner)
 │   ├── test_chunker.py         # Unit tests for token-based chunking
 │   ├── test_vectorstore.py     # Unit tests for ChromaDB vector store
 │   └── eval/                   # Evaluation test suite & golden dataset
@@ -270,7 +271,7 @@ Key architectural decisions are documented in two places:
 - [x] **Phase 1**: Project scaffolding — FastAPI, Docker, DB models, config
 - [x] **Phase 2**: Document ingestion — PDF parsing, configurable chunking, pluggable vector store
 - [x] **Phase 3**: Agentic search & multi-capability agents — autonomous search loop, 4 capabilities
-- [ ] **Phase 4**: A/B comparison & benchmarking — provider comparison, retrieval accuracy, chunk size optimisation
+- [x] **Phase 4**: A/B comparison & benchmarking — provider comparison, retrieval latency, cost tracking
 - [ ] **Phase 5**: Evaluation & feedback loops — golden dataset, 6 metrics, regression tracking, failure analysis
 - [ ] **Phase 6**: Authorisation — API keys, document ACL, audit logging, rate limiting
 - [ ] **Phase 7**: Polish — sample data, demo script, benchmark documentation

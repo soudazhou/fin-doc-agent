@@ -361,7 +361,9 @@ class ChromaVectorStore:
 # ---------------------------------------------------------------------------
 
 
-def get_vector_store() -> PgVectorStore | ChromaVectorStore:
+def get_vector_store(
+    override_type: str | None = None,
+) -> PgVectorStore | ChromaVectorStore:
     """
     Factory that returns the configured vector store backend.
 
@@ -369,11 +371,18 @@ def get_vector_store() -> PgVectorStore | ChromaVectorStore:
     - "pgvector" → PgVectorStore (default, no extra infra)
     - "chroma" → ChromaVectorStore (lightweight, fast prototyping)
 
+    Args:
+        override_type: Optional type override. When set, ignores the
+            config setting. Used by /benchmark/retrieval to test
+            multiple backends in one request.
+
     DESIGN DECISION: Simple factory over DI container. For two
     implementations, a factory function is clearer and more explicit
     than a full dependency injection framework.
     """
-    if settings.vectorstore_type == "chroma":
+    store_type = override_type or settings.vectorstore_type
+
+    if store_type == "chroma":
         logger.info("Using ChromaDB vector store")
         return ChromaVectorStore()
 
