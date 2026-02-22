@@ -45,10 +45,10 @@ logger = logging.getLogger(__name__)
 # Creating one per call would waste connection setup time.
 # Lazy initialization avoids import-time failures when API key isn't set.
 #
-# DESIGN DECISION: API key resolution order:
-#   1. OPENAI_API_KEY (explicit embedding key)
-#   2. LLM_API_KEY (shared key — e.g. one DashScope key for LLM + embeddings)
-# This lets users run both LLM and embeddings off a single Alibaba Cloud key.
+# DESIGN DECISION: API key resolution order (matches LLM providers):
+#   1. LLM_API_KEY (shared key — e.g. one DashScope key for LLM + embeddings)
+#   2. OPENAI_API_KEY (explicit embedding key, fallback)
+# This lets users run both LLM and embeddings off a single API key.
 # ---------------------------------------------------------------------------
 
 _client: OpenAI | None = None
@@ -58,7 +58,7 @@ def _get_client() -> OpenAI:
     """Lazily initialize and cache the embedding client."""
     global _client
     if _client is None:
-        resolved_key = settings.openai_api_key or settings.llm_api_key
+        resolved_key = settings.llm_api_key or settings.openai_api_key
         if not resolved_key:
             raise ValueError(
                 "No API key configured for embeddings. "

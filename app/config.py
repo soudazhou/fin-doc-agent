@@ -68,23 +68,25 @@ class Settings(BaseSettings):
     # -------------------------------------------------------------------------
     # Redis
     # -------------------------------------------------------------------------
-    # Redis database numbers isolate different concerns:
+    # Redis database numbers isolate different concerns within a single
+    # Redis instance:
     #   db 0 = Celery broker (task queue)
     #   db 1 = Celery result backend (task results)
-    #   db 2 = Application cache (future use)
+    #   db 2 = Rate limiter (sliding window counters)
     # -------------------------------------------------------------------------
-    redis_url: str = "redis://localhost:6379/0"
     celery_broker_url: str = "redis://localhost:6379/0"
     celery_result_backend: str = "redis://localhost:6379/1"
 
     # -------------------------------------------------------------------------
     # API Keys — External Services
     # -------------------------------------------------------------------------
-    # These MUST be set via environment variables or .env file.
-    # No defaults are provided to prevent accidental use of invalid keys.
+    # Resolution order (highest priority first):
+    #   LLM providers: llm_api_key → provider-specific key (anthropic/openai)
+    #   Embeddings:    llm_api_key → openai_api_key
     #
-    # ANTHROPIC_API_KEY: For Claude API (Analyst agent reasoning)
-    # OPENAI_API_KEY: For embeddings (OpenAI or any OpenAI-compatible API)
+    # BEST PRACTICE: Set LLM_API_KEY for a single-provider setup (e.g.
+    # one DashScope key for both LLM and embeddings). Use provider-specific
+    # keys only when using different providers for LLM vs embeddings.
     # -------------------------------------------------------------------------
     anthropic_api_key: str = ""
     openai_api_key: str = ""
@@ -127,7 +129,7 @@ class Settings(BaseSettings):
     # -------------------------------------------------------------------------
     llm_provider: str = "anthropic"  # "anthropic" or "openai_compatible"
     llm_base_url: str | None = None  # Only needed for openai_compatible
-    llm_api_key: str | None = None   # Overrides provider-specific key if set
+    llm_api_key: str | None = None   # Shared key — fallback for all providers
     llm_model: str = "claude-sonnet-4-6"
     llm_temperature: float = 0.1
     llm_max_tokens: int = 4096
