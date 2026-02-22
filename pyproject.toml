@@ -154,7 +154,6 @@ dev = [
     "pytest>=8.3.0",
     "pytest-asyncio>=0.24.0",
     "httpx>=0.28.0",  # Async test client for FastAPI
-
     # --- Evaluation ---
     # DeepEval: LLM evaluation framework with RAG-specific metrics.
     # Provides pytest-style test cases for evaluating:
@@ -166,10 +165,10 @@ dev = [
     # 2. CI/CD ready out of the box
     # 3. Supports golden dataset synthesis
     "deepeval>=2.1.0",
-
     # --- Code Quality ---
     "ruff>=0.8.0",     # Linter + formatter (replaces black, isort, flake8)
     "mypy>=1.13.0",    # Static type checking
+    "fpdf2>=2.8.6",
 ]
 
 # ---------------------------------------------------------------------------
