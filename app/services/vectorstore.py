@@ -338,9 +338,14 @@ class ChromaVectorStore:
                         else {}
                     )
 
+                    content = (
+                        results["documents"][0][i]
+                        if results["documents"]
+                        else ""
+                    )
                     search_results.append(VectorSearchResult(
-                        chunk_id=hash(chroma_id) % (10**9),  # Synthetic int ID
-                        content=results["documents"][0][i] if results["documents"] else "",
+                        chunk_id=hash(chroma_id) % (10**9),
+                        content=content,
                         page_number=metadata.get("page_number"),
                         similarity_score=similarity,
                         metadata=metadata,

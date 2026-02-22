@@ -193,6 +193,11 @@ select = [
     "SIM", # flake8-simplify
 ]
 
+[tool.ruff.lint.per-file-ignores]
+# B008: FastAPI uses function calls (File, Query, Depends) in parameter
+# defaults by design — this is the standard pattern, not a bug.
+"app/api/*.py" = ["B008"]
+
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
