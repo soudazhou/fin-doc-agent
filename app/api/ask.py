@@ -104,14 +104,16 @@ async def ask_endpoint(
         logger.error("Configuration error: %s", e)
         raise HTTPException(
             status_code=503,
-            detail=f"Service configuration error: {e}",
+            detail="Service configuration error. Check server logs.",
         ) from e
     except Exception as e:
         # LLM API errors, network issues, etc.
+        # SECURITY: Never expose internal error details to clients.
+        # Full exception is logged server-side via logger.exception.
         logger.exception("Agent graph failed: %s", e)
         raise HTTPException(
             status_code=502,
-            detail=f"LLM service error: {e}",
+            detail="LLM service temporarily unavailable. Check server logs.",
         ) from e
 
     total_latency_ms = int((time.monotonic() - start_time) * 1000)
@@ -157,6 +159,9 @@ async def ask_endpoint(
 # ---------------------------------------------------------------------------
 
 
+_METRIC_QUESTION_MAX_LEN = 500  # Truncate questions stored in metrics
+
+
 async def _persist_metric(
     question: str,
     document_id: int | None,
@@ -173,6 +178,10 @@ async def _persist_metric(
 
     Uses its own DB session to avoid sharing the request session
     (which may already be closed by the time this runs).
+
+    SECURITY: Question text is truncated to avoid persisting unbounded
+    user input in the metrics table. Full questions are still available
+    in audit_logs (when auth is enabled) with appropriate access controls.
     """
     try:
         # Estimate cost using the default provider type from config
@@ -182,10 +191,12 @@ async def _persist_metric(
             provider_type, model or "", input_tokens, output_tokens,
         )
 
+        truncated_q = question[:_METRIC_QUESTION_MAX_LEN]
+
         async with async_session_factory() as session:
             metric = QueryMetric(
                 document_id=document_id,
-                question=question,
+                question=truncated_q,
                 capability=capability,
                 model=model,
                 total_latency_ms=total_latency_ms,
