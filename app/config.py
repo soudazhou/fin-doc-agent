@@ -101,6 +101,7 @@ class Settings(BaseSettings):
     # -------------------------------------------------------------------------
     embedding_model: str = "text-embedding-3-small"
     embedding_dimensions: int = 1536
+    embedding_batch_size: int = 100  # Chunks per OpenAI API call
 
     # -------------------------------------------------------------------------
     # LLM Configuration — Multi-Provider
@@ -142,6 +143,14 @@ class Settings(BaseSettings):
     # -------------------------------------------------------------------------
     vectorstore_type: str = "pgvector"  # "pgvector" or "chroma"
     chroma_url: str | None = None  # Only needed for Chroma in client/server mode
+
+    # -------------------------------------------------------------------------
+    # File Upload
+    # -------------------------------------------------------------------------
+    # Uploaded PDFs are stored on disk before Celery processes them.
+    # This directory is relative to the project root.
+    # -------------------------------------------------------------------------
+    upload_dir: str = "data/uploads"
 
     # -------------------------------------------------------------------------
     # Chunking Configuration
