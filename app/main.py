@@ -33,6 +33,7 @@ from pathlib import Path
 
 from fastapi import FastAPI
 
+from app.api.ask import router as ask_router
 from app.api.ingest import router as ingest_router
 from app.config import settings
 from app.db.engine import async_engine
@@ -131,10 +132,11 @@ app = FastAPI(
 # Each router handles a specific domain. Adding them here keeps main.py thin.
 #
 # Phase 2: Document ingestion (upload, parse, chunk, embed, store)
-# Phase 3: Question answering (/ask) — to be added
+# Phase 3: Question answering (/ask)
 # Phase 4: Evaluation (/evaluate) — to be added
 # ---------------------------------------------------------------------------
 app.include_router(ingest_router)
+app.include_router(ask_router)
 
 
 # ---------------------------------------------------------------------------
