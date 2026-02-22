@@ -50,7 +50,7 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 # ---------------------------------------------------------------------------
 WORKDIR /app
 
-COPY pyproject.toml uv.lock* ./
+COPY pyproject.toml uv.lock* README.md ./
 RUN uv sync --frozen --no-dev 2>/dev/null || uv sync --no-dev
 
 # ---------------------------------------------------------------------------
@@ -61,7 +61,7 @@ COPY . .
 # ---------------------------------------------------------------------------
 # Security: Run as non-root user
 # ---------------------------------------------------------------------------
-RUN useradd --create-home appuser
+RUN useradd --create-home appuser && chown -R appuser:appuser /app
 USER appuser
 
 # ---------------------------------------------------------------------------

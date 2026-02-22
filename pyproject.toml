@@ -38,22 +38,18 @@ dependencies = [
     # 2. Automatic OpenAPI docs generation (great for demo)
     # 3. Pydantic V2 integration for request/response validation
     "fastapi>=0.115.0",
-
     # Uvicorn: ASGI server to run FastAPI. The [standard] extra includes
     # uvloop (faster event loop) and httptools (faster HTTP parsing).
     "uvicorn[standard]>=0.34.0",
-
     # python-multipart: Required by FastAPI for file upload support.
     # Without this, `UploadFile` parameters will fail at runtime.
     "python-multipart>=0.0.18",
-
     # --- Data Validation ---
     # Pydantic V2: Used for all request/response models AND app configuration.
     # V2 is a complete rewrite with 5-50x performance improvement over V1.
     # `pydantic-settings` enables loading config from environment variables.
     "pydantic>=2.10.0",
     "pydantic-settings>=2.7.0",
-
     # --- Database ---
     # SQLAlchemy 2.0: ORM with native async support via asyncpg.
     # DESIGN DECISION: We use SQLAlchemy (not raw SQL) because:
@@ -61,18 +57,15 @@ dependencies = [
     # 2. Migration support via Alembic (future phase)
     # 3. Clean separation of DB models from Pydantic models
     "sqlalchemy[asyncio]>=2.0.36",
-
     # asyncpg: PostgreSQL async driver. Fastest Python PostgreSQL driver.
     # Used by SQLAlchemy's async engine under the hood.
     "asyncpg>=0.30.0",
-
     # psycopg2-binary: PostgreSQL sync driver for Celery workers.
     # DESIGN DECISION: Celery workers are synchronous and cannot use asyncpg.
     # The `-binary` variant includes pre-compiled C extensions, avoiding the
     # need for PostgreSQL development headers at build time.
     # In production, prefer `psycopg2` (non-binary) for security audit compliance.
     "psycopg2-binary>=2.9.10",
-
     # --- Vector Store (Pluggable) ---
     # DESIGN DECISION: We implement BOTH pgvector and Chroma behind a common
     # VectorStore protocol, then benchmark head-to-head (Recall@k, MRR, latency).
@@ -81,12 +74,10 @@ dependencies = [
     # pgvector: PostgreSQL extension for vector similarity search.
     # Pros: No extra infra, HNSW indexing, demonstrates relational DB skills.
     "pgvector>=0.3.6",
-
     # ChromaDB: Lightweight embedding database.
     # Pros: Simple API, fast prototyping, in-process or client/server modes.
     # NOTE: >=1.5.1 required for Pydantic v2 + Python 3.14 compatibility.
     "chromadb>=1.5.1",
-
     # --- Task Queue ---
     # Celery: Distributed task queue for background processing.
     # Used for async PDF ingestion (parse → chunk → embed → store).
@@ -95,14 +86,12 @@ dependencies = [
     # 2. Celery provides retries, monitoring (Flower), and persistence
     # 3. BackgroundTasks are fire-and-forget with no reliability guarantees
     "celery[redis]>=5.4.0",
-
     # --- Redis ---
     # Used as both Celery's message broker AND result backend.
     # Also used for caching (future phase).
     # DESIGN DECISION: Single Redis instance serves multiple purposes
     # but uses different database numbers (0=broker, 1=results) for isolation.
     "redis>=5.2.0",
-
     # --- AI / LLM ---
     # Anthropic SDK: For Claude API calls (Analyst agent reasoning).
     # DESIGN DECISION: Claude over OpenAI because:
@@ -110,7 +99,6 @@ dependencies = [
     # 2. Large context window (200K tokens) useful for financial docs
     # 3. Strong reasoning capabilities for multi-step financial analysis
     "anthropic>=0.42.0",
-
     # LangGraph: Graph-based multi-agent orchestration framework.
     # DESIGN DECISION: LangGraph over simpler alternatives because:
     # 1. Explicit state machines make agent flow debuggable and testable
@@ -118,11 +106,9 @@ dependencies = [
     # 3. Built-in persistence for conversation state
     # 4. Most impressive framework choice for demonstrating orchestration skills
     "langgraph>=0.2.0",
-
     # LangChain Core: Required by LangGraph for base abstractions.
     # We use minimal LangChain — only what LangGraph needs.
     "langchain-core>=0.3.0",
-
     # --- Embeddings ---
     # OpenAI SDK: Used ONLY for text-embedding-3-small embeddings.
     # DESIGN DECISION: OpenAI embeddings over open-source because:
@@ -130,11 +116,9 @@ dependencies = [
     # 2. High quality at low cost ($0.02/1M tokens)
     # 3. Simple API — one call, no model hosting
     "openai>=1.58.0",
-
     # tiktoken: OpenAI's tokenizer. Used for token-aware text chunking.
     # Ensures chunks align with model token limits (not character-based).
     "tiktoken>=0.8.0",
-
     # --- Document Parsing ---
     # Docling: IBM's document intelligence library.
     # DESIGN DECISION: Docling over PyPDF/pdfplumber because:
@@ -143,6 +127,7 @@ dependencies = [
     # 3. Outputs clean markdown — ideal for LLM consumption
     # 4. Built-in OCR for scanned PDFs
     "docling>=2.16.0",
+    "flower>=2.0.1",
 ]
 
 # ---------------------------------------------------------------------------
