@@ -104,7 +104,7 @@ services:
       dockerfile: Dockerfile
     container_name: fin-doc-app
     command: >
-      uvicorn app.main:app
+      uv run uvicorn app.main:app
       --host 0.0.0.0
       --port 8000
       --reload
@@ -114,6 +114,8 @@ services:
     volumes:
       # Mount source code for hot-reload during development
       - .:/app
+      # Preserve container's .venv (built for Linux) from host mount
+      - /app/.venv
     env_file:
       - .env
     depends_on:
@@ -146,11 +148,12 @@ services:
       dockerfile: Dockerfile
     container_name: fin-doc-celery-worker
     command: >
-      celery -A app.workers.celery_app worker
+      uv run celery -A app.workers.celery_app worker
       --loglevel=info
       --concurrency=2
     volumes:
       - .:/app
+      - /app/.venv
     env_file:
       - .env
     depends_on:
@@ -174,12 +177,13 @@ services:
       dockerfile: Dockerfile
     container_name: fin-doc-flower
     command: >
-      celery -A app.workers.celery_app flower
+      uv run celery -A app.workers.celery_app flower
       --port=5555
     ports:
       - "5555:5555"
     volumes:
       - .:/app
+      - /app/.venv
     env_file:
       - .env
     depends_on:
