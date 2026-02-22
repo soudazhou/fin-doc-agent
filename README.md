@@ -147,7 +147,7 @@ docker compose up
 #    http://localhost:5555          (Flower — Celery monitoring)
 
 # 5. Run the demo script (optional — walks through all features)
-./scripts/demo.sh path/to/earnings_report.pdf
+./scripts/demo.sh data/samples/apple_q3_2024_earnings.pdf
 ```
 
 ### Local Development (without Docker)
@@ -191,7 +191,7 @@ uv run celery -A app.workers.celery_app worker --loglevel=info
 ```bash
 # Ingest a document
 curl -X POST http://localhost:8000/ingest \
-  -F "file=@data/samples/earnings_report.pdf"
+  -F "file=@data/samples/apple_q3_2024_earnings.pdf"
 
 # Ask a question (agentic search)
 curl -X POST http://localhost:8000/ask \
@@ -266,10 +266,12 @@ fin-doc-agent/
 │       └── test_golden_dataset.py  # 11 tests for dataset validation
 ├── data/
 │   ├── samples/                # Sample financial PDFs
+│   │   └── apple_q3_2024_earnings.pdf  # Synthetic Apple Q3 2024 report (aligned with golden dataset)
 │   └── eval/golden_datasets/   # Golden datasets for evaluation
 │       └── default.json        # 29 test cases across 4 capabilities
 ├── scripts/
 │   ├── demo.sh                 # End-to-end demo (all features in one run)
+│   ├── generate_sample_pdf.py  # Generate synthetic earnings PDF for testing
 │   └── init-db.sql             # PostgreSQL init (enables pgvector extension)
 ├── docs/
 │   ├── PLAN.md                 # Implementation plan & design decisions

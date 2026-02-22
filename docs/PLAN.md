@@ -628,7 +628,7 @@ Client → Authorization: Bearer sk-abc123...
 - [x] Document benchmark methodology, metrics, and provider pricing in `docs/BENCHMARKS.md`
 - [x] Create `.env.example` with all 6 LLM provider presets and full configuration template
 - [x] Final README updates — mark Phase 7 complete, add demo script reference
-- [ ] Add sample financial PDFs (public company earnings reports, 10-K excerpts)
+- [x] Add sample financial PDFs — synthetic Apple Q3 2024 earnings report aligned with golden dataset (`scripts/generate_sample_pdf.py`, `data/samples/apple_q3_2024_earnings.pdf`)
 - [ ] Populate `docs/BENCHMARKS.md` results tables after running benchmarks with real data
 - [ ] Integration smoke tests (require API keys + running services):
   - [ ] `POST /compare` with two real providers returns side-by-side results
