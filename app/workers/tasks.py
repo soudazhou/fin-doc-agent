@@ -112,7 +112,8 @@ def ingest_document(
         file_path: Path to the uploaded PDF file on disk.
         chunk_size: Override chunk size in tokens (default: settings.chunk_size).
             Configurable per-ingestion for benchmarking different sizes.
-        chunk_overlap: Override chunk overlap in tokens (default: settings.chunk_overlap).
+        chunk_overlap: Override chunk overlap in tokens
+            (default: settings.chunk_overlap).
 
     Returns:
         dict with processing summary (chunk count, page count, vectorstore, etc.)
@@ -184,7 +185,7 @@ def ingest_document(
             for c in chunks
         ]
 
-        chunk_ids = vector_store.add_chunks(
+        vector_store.add_chunks(
             document_id=document_id,
             contents=contents,
             embeddings=embeddings,
@@ -226,4 +227,4 @@ def ingest_document(
 
         # Re-raise with retry — Celery will re-queue with exponential backoff.
         # After max_retries exhausted, the task stays FAILED permanently.
-        raise self.retry(exc=exc)
+        raise self.retry(exc=exc) from exc

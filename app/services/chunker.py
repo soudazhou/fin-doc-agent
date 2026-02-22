@@ -197,7 +197,9 @@ def chunk_document(
 
         # Extract metadata from the elements in this chunk
         page_number = chunk_elements[0].page_number if chunk_elements else 1
-        source_pages = sorted(set(e.page_number for e in chunk_elements if e.page_number > 0))
+        source_pages = sorted(
+            set(e.page_number for e in chunk_elements if e.page_number > 0)
+        )
         section_title = next(
             (e.section_title for e in chunk_elements if e.section_title),
             None,

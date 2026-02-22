@@ -88,7 +88,10 @@ def _get_converter() -> DocumentConverter:
     """Lazily initialize and cache the Docling DocumentConverter."""
     global _converter
     if _converter is None:
-        logger.info("Initializing Docling DocumentConverter (first use, may take a few seconds)...")
+        logger.info(
+            "Initializing Docling DocumentConverter "
+            "(first use, may take a few seconds)..."
+        )
 
         # DESIGN DECISION: Enable table structure extraction and OCR.
         # Financial documents are heavily table-based (income statements,
