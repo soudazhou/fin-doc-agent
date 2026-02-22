@@ -209,6 +209,11 @@ class PgVectorStore:
             result = await session.execute(stmt)
             rows = result.all()
 
+        logger.debug(
+            "Vector search returned %d rows (top_k=%d, doc_id=%s)",
+            len(rows), top_k, document_id,
+        )
+
         return [
             VectorSearchResult(
                 chunk_id=chunk.id,

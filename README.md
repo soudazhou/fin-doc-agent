@@ -113,7 +113,7 @@ Switch between LLM providers with a single `.env` change:
 | API Framework | FastAPI + Pydantic V2 | Async-native, auto-generated OpenAPI docs, type-safe validation |
 | Multi-Agent | LangGraph | Graph-based state machines for debuggable, testable agent orchestration |
 | Vector Storage | pgvector + Chroma (benchmarked) | Both behind pluggable interface; benchmark results drive recommendation |
-| Embeddings | OpenAI `text-embedding-3-small` | High quality, no GPU required, 1536 dimensions |
+| Embeddings | Provider-agnostic (OpenAI, DashScope, etc.) | Configurable `EMBEDDING_BASE_URL` — any OpenAI-compatible embedding API |
 | LLM | Multi-provider | Provider-agnostic: Claude, DeepSeek, Qwen, GLM-5, MiniMax, Kimi |
 | PDF Parsing | Docling (IBM) | Purpose-built for structured financial documents with complex tables |
 | Task Queue | Celery 5.6 + Redis | Reliable background processing with monitoring (Flower) |
@@ -124,31 +124,66 @@ Switch between LLM providers with a single `.env` change:
 ### Prerequisites
 
 - Docker & Docker Compose
-- Python 3.12+
-- [uv](https://docs.astral.sh/uv/) (Python package manager)
-- API keys: [Anthropic](https://console.anthropic.com/settings/keys) + [OpenAI](https://platform.openai.com/api-keys) (or any supported provider)
+- An API key from **any** supported provider (see below)
 
-### Setup
+### 1. Choose Your Provider
+
+The cheapest way to run the full stack is a single [Alibaba Cloud Model Studio](https://www.alibabacloud.com/en/product/modelstudio) key (pay-as-you-go, no minimum spend). It covers both LLM and embeddings:
+
+| Provider | What You Get | Cost | Sign Up |
+|----------|-------------|------|---------|
+| **Alibaba Cloud** (recommended) | Qwen LLM + text-embedding-v4 | ~$0.40/1M tokens | [Model Studio Console](https://bailian.console.alibabacloud.com/) |
+| **Anthropic + OpenAI** | Claude + text-embedding-3-small | ~$3.00/1M tokens | [Anthropic](https://console.anthropic.com/settings/keys) + [OpenAI](https://platform.openai.com/api-keys) |
+| **DeepSeek** | DeepSeek V3 (cheapest LLM) | ~$0.14/1M tokens | [DeepSeek Platform](https://platform.deepseek.com/) |
+
+See `.env.example` for all 7 provider presets with copy-paste configuration.
+
+### 2. Configure & Run
 
 ```bash
-# 1. Clone the repository
+# Clone the repository
 git clone https://github.com/soudazhou/fin-doc-agent.git
 cd fin-doc-agent
 
-# 2. Copy environment template and add your API keys
+# Copy environment template
 cp .env.example .env
-# Edit .env — set API keys and choose your LLM provider
 
-# 3. Start all services
-docker compose up
+# Edit .env — uncomment ONE provider preset and add your API key.
+# Example (Alibaba Cloud all-in-one):
+#   LLM_PROVIDER=openai_compatible
+#   LLM_BASE_URL=https://dashscope-intl.aliyuncs.com/compatible-mode/v1
+#   LLM_API_KEY=sk-your-key-here
+#   LLM_MODEL=qwen-plus
+#   EMBEDDING_MODEL=text-embedding-v4
+#   EMBEDDING_BASE_URL=https://dashscope-intl.aliyuncs.com/compatible-mode/v1
 
-# 4. Verify — API docs available at:
-#    http://localhost:8000/docs     (Swagger UI)
-#    http://localhost:5555          (Flower — Celery monitoring)
+# Start all services (first build takes ~2 minutes)
+docker compose up --build
+```
 
-# 5. Run the demo script (optional — walks through all features)
+### 3. Verify & Use
+
+```bash
+# Health check
+curl http://localhost:8000/health
+
+# Ingest the sample document
+curl -X POST http://localhost:8000/ingest \
+  -F "file=@data/samples/apple_q3_2024_earnings.pdf"
+
+# Wait ~60s for ingestion (Docling PDF parsing on CPU), then ask a question
+curl -X POST http://localhost:8000/ask \
+  -H "Content-Type: application/json" \
+  -d '{"question": "What was Apple'\''s total revenue in Q3 2024?"}'
+
+# Or run the full demo script (ingests, asks all 4 capabilities, compares providers)
 ./scripts/demo.sh data/samples/apple_q3_2024_earnings.pdf
 ```
+
+**Web UIs:**
+
+- API docs (Swagger): http://localhost:8000/docs
+- Celery monitoring (Flower): http://localhost:5555
 
 ### Local Development (without Docker)
 
@@ -245,7 +280,7 @@ fin-doc-agent/
 │   │   ├── vectorstore.py      # Pluggable vector store (pgvector, Chroma)
 │   │   ├── parser.py           # PDF parsing (Docling)
 │   │   ├── chunker.py          # Configurable token-based chunking
-│   │   ├── embedder.py         # Embedding generation (OpenAI)
+│   │   ├── embedder.py         # Embedding generation (provider-agnostic)
 │   │   ├── eval_runner.py       # RAG evaluation orchestration (dataset loading, test execution, scoring)
 │   │   ├── eval_metrics.py     # Custom eval metrics (numerical accuracy, retrieval recall@k)
 │   │   ├── pricing.py          # Provider pricing registry
@@ -302,12 +337,75 @@ Key architectural decisions are documented in two places:
 ## Running Tests
 
 ```bash
-# Unit tests
+# Unit tests (140 tests, no API keys required)
 uv run pytest tests/
 
 # RAG evaluation suite
 uv run pytest tests/eval/ -v
 ```
+
+## End-to-End Verification
+
+The full stack has been verified end-to-end with real API calls on **22 Feb 2026** using Alibaba Cloud Model Studio (DashScope Singapore) as a single provider for both LLM (`qwen-plus`) and embeddings (`text-embedding-v4`).
+
+### Ingestion (`POST /ingest`)
+
+```
+$ curl -X POST http://localhost:8000/ingest \
+    -F "file=@data/samples/apple_q3_2024_earnings.pdf"
+
+→ document_id: 3, status: "processing"
+→ Docling parsed 7 pages → 6 chunks → embedded (1536d) → stored in pgvector
+→ Total ingestion time: ~50s (Docling OCR on CPU in Docker)
+```
+
+### Agentic Search (`POST /ask`) — All 4 Capabilities
+
+| Capability | Query | Answer | Sources |
+|-----------|-------|--------|---------|
+| **Q&A** | "What was Apple's total revenue in Q3 2024?" | **$85.8 billion** | 4 chunks, scores 0.58–0.80 |
+| **Summarise** | "Summarise the key financial metrics" | Full breakdown with revenue tables, margins, EPS | 2 chunks, scores 0.73–0.83 |
+| **Compare** | "Compare iPhone vs Services revenue — which is growing faster?" | **Services (+14% YoY)** vs iPhone (-1% YoY) | 1 chunk, score 0.74 |
+| **Extract** | "Extract the revenue by geographic region table" | Structured JSON with all 6 regions | 1 chunk, score 0.52 |
+
+### Provider Comparison (`POST /compare`)
+
+```
+$ curl -X POST http://localhost:8000/compare \
+    -H "Content-Type: application/json" \
+    -d '{"question": "What was Apple'\''s gross margin in Q3 2024?",
+         "providers": [
+           "openai_compatible/qwen-plus@https://dashscope-intl.aliyuncs.com/compatible-mode/v1",
+           "openai_compatible/qwen-turbo@https://dashscope-intl.aliyuncs.com/compatible-mode/v1"
+         ]}'
+```
+
+| Provider | Answer | Latency | Tokens (in/out) | Cost |
+|----------|--------|---------|-----------------|------|
+| **qwen-plus** | 46.3% with 4 source citations | 8,143ms | 2,969 / 186 | $0.0004 |
+| **qwen-turbo** | 46.3% (concise) | 4,094ms | 2,973 / 22 | — |
+| **Winner** | qwen-turbo (fastest), qwen-plus (cheapest) | | | |
+
+### Metrics (`GET /metrics`)
+
+```json
+{
+  "total_queries": 12,
+  "overall_avg_latency_ms": 5917,
+  "overall_total_cost_usd": 0.001878,
+  "by_provider": [
+    { "provider_id": "qwen-plus",  "avg_latency_ms": 5877, "avg_cost_per_query_usd": 0.000294 },
+    { "provider_id": "qwen-turbo", "avg_latency_ms": 4094 }
+  ]
+}
+```
+
+### Issues Found & Fixed During Testing
+
+| Issue | Root Cause | Fix |
+|-------|-----------|-----|
+| `expected 1536 dimensions, not 1024` | `text-embedding-v3` defaults to 1024 dims | Switched to `text-embedding-v4` and pass `dimensions` param to API |
+| Empty results on some queries | `RETRIEVAL_SIMILARITY_THRESHOLD=0.7` too aggressive for DashScope embeddings | Lowered to 0.45 in `.env` (default kept at 0.7 for OpenAI) |
 
 ## Acknowledgements
 
