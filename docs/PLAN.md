@@ -631,6 +631,7 @@ Client → Authorization: Bearer sk-abc123...
 - [x] Final README updates — mark Phase 7 complete, add demo script reference
 - [x] Add sample financial PDFs — synthetic Apple Q3 2024 earnings report aligned with golden dataset (`scripts/generate_sample_pdf.py`, `data/samples/apple_q3_2024_earnings.pdf`)
 - [x] Populate `docs/BENCHMARKS.md` with real benchmark results (retrieval latency, 4-model provider comparison across 3 questions, aggregated metrics)
+- [x] Restructure benchmarks as versioned runs: `docs/BENCHMARKS.md` is now an index page linking to timestamped results in `docs/benchmark-runs/` (one file per run, first run: [2026-02-22-dashscope-singapore-qwen.md](benchmark-runs/2026-02-22-dashscope-singapore-qwen.md))
 - [x] Integration smoke tests (verified 22 Feb 2026, DashScope Singapore):
   - [x] `POST /ingest` — Docling parsed 7-page PDF → 6 chunks → embedded (text-embedding-v4, 1536d) → stored in pgvector (~50s on CPU)
   - [x] `POST /ask` — all 4 capabilities verified: Q&A ($85.8B revenue), summarise (full breakdown), compare (Services +14% vs iPhone -1%), extract (geographic region JSON)

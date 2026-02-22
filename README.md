@@ -90,6 +90,7 @@ Switch between LLM providers with a single `.env` change:
 - **Needle in haystack**: Find the correct chunk among 1000+, measured with Recall@5, Recall@10, MRR
 - **Chunk size comparison**: Empirically benchmark 256/512/1024 token chunks
 - **Vector store comparison**: pgvector vs Chroma on the same dataset
+- **Versioned results**: Each benchmark run is stored as a timestamped file in [`docs/benchmark-runs/`](docs/benchmark-runs/) — see [BENCHMARKS.md](docs/BENCHMARKS.md) for the full index
 
 ### Evaluation & Feedback Loops
 
@@ -310,7 +311,9 @@ fin-doc-agent/
 │   └── init-db.sql             # PostgreSQL init (enables pgvector extension)
 ├── docs/
 │   ├── PLAN.md                 # Implementation plan & design decisions
-│   └── BENCHMARKS.md           # Retrieval accuracy & provider comparison results
+│   ├── BENCHMARKS.md           # Benchmark methodology, metrics & run index
+│   └── benchmark-runs/         # Timestamped benchmark results (one file per run)
+│       └── 2026-02-22-dashscope-singapore-qwen.md
 ├── docker-compose.yml          # Full local environment
 ├── Dockerfile                  # Python 3.12 app image
 ├── pyproject.toml              # Dependencies & tool config
