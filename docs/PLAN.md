@@ -630,7 +630,7 @@ Client → Authorization: Bearer sk-abc123...
 - [x] Make embedding endpoint configurable (`EMBEDDING_BASE_URL`) so the full stack can run on a single Alibaba Cloud (DashScope) API key
 - [x] Final README updates — mark Phase 7 complete, add demo script reference
 - [x] Add sample financial PDFs — synthetic Apple Q3 2024 earnings report aligned with golden dataset (`scripts/generate_sample_pdf.py`, `data/samples/apple_q3_2024_earnings.pdf`)
-- [ ] Populate `docs/BENCHMARKS.md` results tables after running benchmarks with real data
+- [x] Populate `docs/BENCHMARKS.md` with real benchmark results (retrieval latency, 4-model provider comparison across 3 questions, aggregated metrics)
 - [x] Integration smoke tests (verified 22 Feb 2026, DashScope Singapore):
   - [x] `POST /ingest` — Docling parsed 7-page PDF → 6 chunks → embedded (text-embedding-v4, 1536d) → stored in pgvector (~50s on CPU)
   - [x] `POST /ask` — all 4 capabilities verified: Q&A ($85.8B revenue), summarise (full breakdown), compare (Services +14% vs iPhone -1%), extract (geographic region JSON)
