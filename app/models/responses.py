@@ -270,23 +270,195 @@ class EvalMetric(BaseModel):
     )
 
 
+class EvaluateStartResponse(BaseModel):
+    """
+    Response for POST /evaluate — confirms evaluation has started.
+
+    The evaluation runs in the background (potentially 30+ LLM calls).
+    Poll GET /evaluate/runs/{run_id} for results.
+    """
+
+    run_id: int = Field(description="ID of the created evaluation run")
+    status: str = Field(
+        default="running",
+        description="Run status: 'running' means evaluation is in progress",
+    )
+    message: str = Field(
+        default="Evaluation started. Poll GET /evaluate/runs/{run_id} for results.",
+    )
+
+
+class EvalTestCaseResult(BaseModel):
+    """Per-test-case result detail within an evaluation run."""
+
+    test_case_id: str = Field(description="ID from the golden dataset")
+    question: str
+    expected_answer: str | None = None
+    actual_answer: str
+    passed: bool
+    metric_scores: dict[str, float] = Field(
+        description="Metric name → score (0.0-1.0)",
+    )
+    metric_reasons: dict[str, str | None] = Field(
+        default_factory=dict,
+        description="Metric name → LLM judge reason (if applicable)",
+    )
+
+
+class RegressionComparison(BaseModel):
+    """
+    Comparison between current eval run and the most recent previous run.
+
+    Positive score_delta means improvement; negative means regression.
+    """
+
+    previous_run_id: int | None = Field(
+        default=None,
+        description="ID of the previous run compared against",
+    )
+    previous_overall_score: float | None = None
+    score_delta: float | None = Field(
+        default=None,
+        description="Overall score change (positive = improvement)",
+    )
+    metric_deltas: dict[str, float] | None = Field(
+        default=None,
+        description="Per-metric score changes",
+    )
+    regressed_metrics: list[str] = Field(
+        default_factory=list,
+        description="Metrics that got worse (delta < -0.01)",
+    )
+    improved_metrics: list[str] = Field(
+        default_factory=list,
+        description="Metrics that improved (delta > 0.01)",
+    )
+
+
 class EvaluateResponse(BaseModel):
     """
-    Response for POST /evaluate — RAG evaluation results.
+    Response for GET /evaluate/runs/{run_id} — full evaluation results.
 
-    Returns per-metric scores and an overall assessment.
+    Returns per-metric scores, individual test case results, and
+    regression comparison with the previous run.
     These metrics help identify weaknesses in the RAG pipeline:
     - Low faithfulness → LLM is hallucinating, needs better prompting
     - Low context precision → Retrieval returning irrelevant chunks
     - Low context recall → Chunking or embedding issues
     """
 
+    run_id: int = Field(description="Evaluation run ID")
+    status: str = Field(description="Run status: running, completed, failed")
     document_id: int
     eval_dataset: str
-    metrics: list[EvalMetric] = Field(description="Individual metric scores")
-    overall_score: float = Field(
-        description="Average score across all metrics (0.0-1.0)"
+    provider_id: str | None = None
+    metrics: list[EvalMetric] = Field(
+        default_factory=list,
+        description="Aggregate metric scores",
     )
-    total_test_cases: int = Field(description="Number of Q&A pairs evaluated")
-    passed: int = Field(description="Number of test cases that passed thresholds")
-    failed: int = Field(description="Number of test cases that failed thresholds")
+    overall_score: float = Field(
+        default=0.0,
+        description="Average score across all metrics (0.0-1.0)",
+    )
+    total_test_cases: int = Field(
+        default=0, description="Number of Q&A pairs evaluated",
+    )
+    passed: int = Field(
+        default=0, description="Number of test cases that passed thresholds",
+    )
+    failed: int = Field(
+        default=0, description="Number of test cases that failed thresholds",
+    )
+    duration_ms: int | None = Field(
+        default=None, description="Total evaluation duration in milliseconds",
+    )
+    regression: RegressionComparison | None = Field(
+        default=None,
+        description="Comparison with previous run (null if first run)",
+    )
+    test_case_results: list[EvalTestCaseResult] | None = Field(
+        default=None,
+        description="Per-test-case details (null while running)",
+    )
+    error: str | None = Field(
+        default=None,
+        description="Error message if status is 'failed'",
+    )
+    created_at: datetime | None = None
+
+
+class EvalHistoryEntry(BaseModel):
+    """A single entry in the evaluation history timeline."""
+
+    run_id: int
+    document_id: int
+    eval_dataset: str
+    provider_id: str | None = None
+    overall_score: float
+    metric_scores: dict[str, float] = Field(
+        description="Metric name → average score",
+    )
+    total_test_cases: int
+    passed: int
+    failed: int
+    duration_ms: int | None = None
+    created_at: datetime
+
+
+class EvalHistoryResponse(BaseModel):
+    """
+    Response for GET /evaluate/history — evaluation score trends over time.
+
+    Shows chronological list of eval runs with a trend indicator.
+    """
+
+    entries: list[EvalHistoryEntry]
+    total_runs: int
+    trend: str = Field(
+        description=(
+            "Score trend: 'improving', 'declining', 'stable', "
+            "or 'insufficient_data' (need 2+ runs)"
+        ),
+    )
+
+
+class EvalFailureDetail(BaseModel):
+    """Detailed failure information for a single test case."""
+
+    test_case_id: str
+    question: str
+    expected_answer: str | None = None
+    actual_answer: str
+    metric_scores: dict[str, float]
+    metric_reasons: dict[str, str | None] = Field(default_factory=dict)
+    failing_metrics: list[str] = Field(
+        description="Metrics that fell below their threshold",
+    )
+    search_trace: list[dict] | None = Field(
+        default=None,
+        description="Full agentic search trace for debugging",
+    )
+    sources: list[dict] | None = Field(
+        default=None,
+        description="Retrieved source chunks",
+    )
+
+
+class EvalFailuresResponse(BaseModel):
+    """
+    Response for GET /evaluate/failures — detailed failure analysis.
+
+    Used for debugging: shows which test cases failed, why, and the
+    full search trace so you can identify retrieval or generation issues.
+    """
+
+    run_id: int
+    failures: list[EvalFailureDetail]
+    total_failures: int
+    failure_rate: float = Field(
+        description="Fraction of test cases that failed (0.0-1.0)",
+    )
+    most_common_failing_metric: str | None = Field(
+        default=None,
+        description="Metric that fails most often across test cases",
+    )

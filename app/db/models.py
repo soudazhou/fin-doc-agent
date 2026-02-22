@@ -414,3 +414,223 @@ query_metric_provider_idx = Index(
     QueryMetric.provider_id,
     QueryMetric.created_at,
 )
+
+
+# =============================================================================
+# Evaluation Results — Eval Framework (Phase 5)
+# =============================================================================
+#
+# Two tables capture evaluation data at different granularities:
+#
+# eval_runs: One row per POST /evaluate invocation. Stores aggregate
+#   scores, pass/fail counts, and run metadata. Used by /evaluate/history
+#   for trend analysis without loading per-test-case details.
+#
+# eval_test_results: One row per golden dataset test case per run.
+#   Stores the full input/output, per-metric scores with reasons, and
+#   the agentic search trace. Used by /evaluate/failures for debugging.
+#
+# DESIGN DECISION: Two tables rather than one because:
+# 1. History endpoint needs run-level summaries efficiently (no N+1)
+# 2. Failures endpoint needs per-test-case detail with search traces
+# 3. JSONB on metric_results keeps the schema flexible for new metrics
+# =============================================================================
+
+
+class EvalRun(Base):
+    """
+    A single evaluation run — one invocation of POST /evaluate.
+
+    Tracks aggregate scores and status for the entire run.
+    Each run produces N EvalTestResult rows (one per golden dataset entry).
+    """
+
+    __tablename__ = "eval_runs"
+
+    id: Mapped[int] = mapped_column(
+        Integer, primary_key=True, autoincrement=True,
+    )
+
+    # Which document was evaluated
+    document_id: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey("documents.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+
+    # Which golden dataset was used (maps to filename in data/eval/)
+    eval_dataset: Mapped[str] = mapped_column(
+        String(100), nullable=False,
+    )
+
+    # Provider used for this run (null = default singleton)
+    provider_id: Mapped[str | None] = mapped_column(
+        String(200), nullable=True,
+    )
+
+    # Actual model name returned by the LLM API
+    model: Mapped[str | None] = mapped_column(
+        String(200), nullable=True,
+    )
+
+    # Run lifecycle status
+    # "running" → "completed" | "failed"
+    status: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="running",
+    )
+
+    # Aggregate metric scores: {metric_name: avg_score}
+    # JSONB because the set of metrics may expand over time
+    metric_scores: Mapped[dict | None] = mapped_column(
+        JSONB, nullable=True,
+    )
+
+    # Average across all metric scores (convenience for sorting/filtering)
+    overall_score: Mapped[float | None] = mapped_column(
+        Float, nullable=True,
+    )
+
+    total_test_cases: Mapped[int | None] = mapped_column(
+        Integer, nullable=True,
+    )
+    passed: Mapped[int | None] = mapped_column(
+        Integer, nullable=True,
+    )
+    failed: Mapped[int | None] = mapped_column(
+        Integer, nullable=True,
+    )
+
+    # Snapshot of thresholds and config used for this run
+    run_config: Mapped[dict | None] = mapped_column(
+        JSONB, nullable=True,
+    )
+
+    # Total evaluation duration in milliseconds
+    duration_ms: Mapped[int | None] = mapped_column(
+        Integer, nullable=True,
+    )
+
+    # Error message if status="failed"
+    error: Mapped[str | None] = mapped_column(
+        Text, nullable=True,
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
+
+    # Relationship to individual test case results
+    test_results: Mapped[list["EvalTestResult"]] = relationship(
+        "EvalTestResult",
+        back_populates="eval_run",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+    )
+
+    def __repr__(self) -> str:
+        return (
+            f"<EvalRun(id={self.id}, dataset='{self.eval_dataset}', "
+            f"status='{self.status}', score={self.overall_score})>"
+        )
+
+
+class EvalTestResult(Base):
+    """
+    Result of evaluating a single golden dataset test case.
+
+    Stores the full input/output, per-metric scores with LLM judge
+    reasoning, and the agentic search trace for failure debugging.
+    """
+
+    __tablename__ = "eval_test_results"
+
+    id: Mapped[int] = mapped_column(
+        Integer, primary_key=True, autoincrement=True,
+    )
+
+    # Parent evaluation run
+    eval_run_id: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey("eval_runs.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+
+    # ID from the golden dataset (e.g., "qa_revenue_01")
+    test_case_id: Mapped[str] = mapped_column(
+        String(100), nullable=False,
+    )
+
+    # Input/output data
+    question: Mapped[str] = mapped_column(Text, nullable=False)
+    expected_answer: Mapped[str | None] = mapped_column(Text, nullable=True)
+    actual_answer: Mapped[str] = mapped_column(Text, nullable=False)
+
+    # Retrieval context — list of chunk content strings
+    # Used by DeepEval metrics as the retrieval_context parameter
+    retrieval_context: Mapped[dict | None] = mapped_column(
+        JSONB, nullable=True,
+    )
+
+    # Per-metric scores: {metric_name: {"score": float, "reason": str|null}}
+    # JSONB keeps this flexible — no schema change when adding metrics
+    metric_results: Mapped[dict] = mapped_column(
+        JSONB, nullable=False,
+    )
+
+    # Pass/fail based on threshold comparison
+    passed: Mapped[bool] = mapped_column(nullable=False)
+
+    # Full agentic search trace for debugging failures
+    # Contains query rewrites, retrieval scores per iteration, evaluation reasons
+    search_trace: Mapped[dict | None] = mapped_column(
+        JSONB, nullable=True,
+    )
+
+    # Retrieved source chunks
+    # [{chunk_id, page_number, similarity_score, content_preview}]
+    sources: Mapped[dict | None] = mapped_column(
+        JSONB, nullable=True,
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
+
+    # Relationship back to parent run
+    eval_run: Mapped["EvalRun"] = relationship(
+        "EvalRun", back_populates="test_results",
+    )
+
+    def __repr__(self) -> str:
+        return (
+            f"<EvalTestResult(id={self.id}, case='{self.test_case_id}', "
+            f"passed={self.passed})>"
+        )
+
+
+# Indexes for evaluation queries
+eval_run_document_idx = Index(
+    "idx_eval_run_document_created",
+    EvalRun.document_id,
+    EvalRun.created_at,
+)
+
+eval_run_provider_idx = Index(
+    "idx_eval_run_provider",
+    EvalRun.provider_id,
+)
+
+eval_test_result_run_idx = Index(
+    "idx_eval_test_result_run",
+    EvalTestResult.eval_run_id,
+)
+
+eval_test_result_passed_idx = Index(
+    "idx_eval_test_result_passed",
+    EvalTestResult.eval_run_id,
+    EvalTestResult.passed,
+)

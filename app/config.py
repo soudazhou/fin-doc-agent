@@ -183,6 +183,18 @@ class Settings(BaseSettings):
     max_search_iterations: int = 3
 
     # -------------------------------------------------------------------------
+    # Evaluation Configuration (Phase 5)
+    # -------------------------------------------------------------------------
+    # DESIGN DECISION: Golden datasets stored as JSON files on disk (not DB).
+    # They are versioned config tracked in git, not runtime data.
+    # The eval_judge_model is the LLM used by DeepEval as an "LLM-as-judge"
+    # for metrics like faithfulness and answer relevancy.
+    # -------------------------------------------------------------------------
+    eval_dataset_dir: str = "data/eval/golden_datasets"
+    eval_judge_model: str = "gpt-4.1"  # Cheapest capable judge model
+    eval_default_threshold: float = 0.7  # Default pass/fail threshold
+
+    # -------------------------------------------------------------------------
     # Authorisation Configuration
     # -------------------------------------------------------------------------
     # DESIGN DECISION: Auth is toggleable. Disabled during local dev for
