@@ -216,17 +216,15 @@ fin-doc-agent/
 │   ├── api/                    # Route handlers
 │   │   ├── ingest.py           # Document upload & status
 │   │   ├── ask.py              # Agentic search + answer
-│   │   ├── compare.py          # A/B provider comparison
-│   │   ├── evaluate.py         # Evaluation suite
-│   │   ├── metrics.py          # Performance metrics
-│   │   └── admin.py            # API key management
+│   │   ├── benchmark.py         # A/B comparison, retrieval benchmark, metrics
+│   │   └── evaluate.py         # Evaluation suite (run, history, failures)
 │   ├── agents/                 # LangGraph multi-agent system
 │   │   ├── orchestrator.py     # Intent classification & routing
 │   │   ├── search.py           # Agentic search loop
 │   │   └── analyst.py          # LLM reasoning (multi-capability)
 │   ├── db/                     # Database layer
 │   │   ├── engine.py           # Async SQLAlchemy engine
-│   │   └── models.py           # ORM models (Document, Chunk, QueryMetric, EvalResult, ApiKey)
+│   │   └── models.py           # ORM models (Document, Chunk, QueryMetric, EvalRun, EvalTestResult)
 │   ├── models/                 # Pydantic V2 schemas
 │   │   ├── requests.py         # API request validation
 │   │   └── responses.py        # API response serialization
@@ -236,8 +234,8 @@ fin-doc-agent/
 │   │   ├── parser.py           # PDF parsing (Docling)
 │   │   ├── chunker.py          # Configurable token-based chunking
 │   │   ├── embedder.py         # Embedding generation (OpenAI)
-│   │   ├── evaluator.py        # RAG evaluation (DeepEval + custom)
-│   │   ├── metrics.py          # Performance metrics collection
+│   │   ├── eval_runner.py       # RAG evaluation orchestration (dataset loading, test execution, scoring)
+│   │   ├── eval_metrics.py     # Custom eval metrics (numerical accuracy, retrieval recall@k)
 │   │   └── pricing.py          # Provider pricing registry
 │   └── workers/                # Background processing
 │       ├── celery_app.py       # Celery configuration
@@ -247,9 +245,14 @@ fin-doc-agent/
 │   ├── test_benchmark.py       # Unit tests for benchmarking (pricing, provider parsing, winner)
 │   ├── test_chunker.py         # Unit tests for token-based chunking
 │   ├── test_vectorstore.py     # Unit tests for ChromaDB vector store
-│   └── eval/                   # Evaluation test suite & golden dataset
+│   └── eval/                   # Evaluation test suite
+│       ├── test_eval_metrics.py    # 24 tests for custom metrics
+│       ├── test_eval_runner.py     # 12 tests for runner logic
+│       └── test_golden_dataset.py  # 11 tests for dataset validation
 ├── data/
-│   └── samples/                # Sample financial PDFs
+│   ├── samples/                # Sample financial PDFs
+│   └── eval/golden_datasets/   # Golden datasets for evaluation
+│       └── default.json        # 29 test cases across 4 capabilities
 ├── docs/
 │   ├── PLAN.md                 # Implementation plan & design decisions
 │   └── BENCHMARKS.md           # Retrieval accuracy & provider comparison results
@@ -272,7 +275,7 @@ Key architectural decisions are documented in two places:
 - [x] **Phase 2**: Document ingestion — PDF parsing, configurable chunking, pluggable vector store
 - [x] **Phase 3**: Agentic search & multi-capability agents — autonomous search loop, 4 capabilities
 - [x] **Phase 4**: A/B comparison & benchmarking — provider comparison, retrieval latency, cost tracking
-- [ ] **Phase 5**: Evaluation & feedback loops — golden dataset, 6 metrics, regression tracking, failure analysis
+- [x] **Phase 5**: Evaluation & feedback loops — golden dataset, 6 metrics, regression tracking, failure analysis
 - [ ] **Phase 6**: Authorisation — API keys, document ACL, audit logging, rate limiting
 - [ ] **Phase 7**: Polish — sample data, demo script, benchmark documentation
 

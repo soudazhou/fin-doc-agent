@@ -1,0 +1,553 @@
+{
+  "dataset_name": "default",
+  "description": "Golden dataset covering all 4 capabilities for financial document Q&A evaluation. Based on typical public company earnings reports and 10-K filings.",
+  "version": "1.0",
+  "thresholds": {
+    "faithfulness": 0.7,
+    "answer_relevancy": 0.7,
+    "contextual_precision": 0.6,
+    "contextual_recall": 0.6,
+    "numerical_accuracy": 0.8,
+    "retrieval_recall_at_k": 0.7
+  },
+  "test_cases": [
+    {
+      "id": "qa_revenue_01",
+      "capability": "qa",
+      "question": "What was Apple's total revenue in Q3 2024?",
+      "expected_answer": "Apple's total revenue in Q3 2024 was $85.8 billion, representing a 5% year-over-year increase.",
+      "expected_context": [
+        "Apple Inc. reported total net revenue of $85.8 billion for the third fiscal quarter of 2024, compared to $81.8 billion in Q3 2023, an increase of approximately 5% year over year."
+      ],
+      "expected_source_chunks": [],
+      "numerical_values": {
+        "total_revenue": "$85.8 billion",
+        "yoy_growth": "5%"
+      },
+      "tags": ["revenue", "quarterly", "apple"]
+    },
+    {
+      "id": "qa_revenue_02",
+      "capability": "qa",
+      "question": "What was the gross profit margin in the most recent quarter?",
+      "expected_answer": "The gross profit margin in Q3 2024 was 46.3%, up from 44.5% in the year-ago quarter.",
+      "expected_context": [
+        "Gross margin for Q3 2024 was 46.3%, compared to 44.5% in Q3 2023. The improvement was driven by favorable product mix and cost efficiencies in the supply chain."
+      ],
+      "expected_source_chunks": [],
+      "numerical_values": {
+        "gross_margin": "46.3%",
+        "prior_year_margin": "44.5%"
+      },
+      "tags": ["margin", "quarterly", "profitability"]
+    },
+    {
+      "id": "qa_eps_01",
+      "capability": "qa",
+      "question": "What was the diluted earnings per share?",
+      "expected_answer": "Diluted earnings per share (EPS) was $1.40 for Q3 2024, compared to $1.26 in Q3 2023.",
+      "expected_context": [
+        "Diluted earnings per share were $1.40, an 11% increase from the $1.26 reported in the prior-year quarter, driven by higher revenue and improved operating margins."
+      ],
+      "expected_source_chunks": [],
+      "numerical_values": {
+        "diluted_eps": "$1.40",
+        "prior_year_eps": "$1.26",
+        "eps_growth": "11%"
+      },
+      "tags": ["eps", "earnings", "quarterly"]
+    },
+    {
+      "id": "qa_segment_01",
+      "capability": "qa",
+      "question": "How much revenue did the Services segment generate?",
+      "expected_answer": "The Services segment generated $24.2 billion in revenue in Q3 2024, an all-time high and a 14% year-over-year increase.",
+      "expected_context": [
+        "Services revenue reached an all-time record of $24.2 billion, up 14% year over year. The segment includes the App Store, Apple Music, iCloud, Apple TV+, AppleCare, and licensing revenue."
+      ],
+      "expected_source_chunks": [],
+      "numerical_values": {
+        "services_revenue": "$24.2 billion",
+        "services_growth": "14%"
+      },
+      "tags": ["services", "segment", "revenue"]
+    },
+    {
+      "id": "qa_cash_01",
+      "capability": "qa",
+      "question": "How much cash and cash equivalents does the company hold?",
+      "expected_answer": "As of the end of Q3 2024, the company held $29.8 billion in cash and cash equivalents, with total cash and marketable securities of $153 billion.",
+      "expected_context": [
+        "Cash and cash equivalents at the end of Q3 2024 totaled $29.8 billion. Including short-term and long-term marketable securities, total cash and investments were approximately $153 billion."
+      ],
+      "expected_source_chunks": [],
+      "numerical_values": {
+        "cash_equivalents": "$29.8 billion",
+        "total_cash_securities": "$153 billion"
+      },
+      "tags": ["cash", "balance_sheet", "liquidity"]
+    },
+    {
+      "id": "qa_opex_01",
+      "capability": "qa",
+      "question": "What were the total operating expenses in Q3 2024?",
+      "expected_answer": "Total operating expenses in Q3 2024 were $14.3 billion, comprising $7.9 billion in R&D and $6.4 billion in SG&A.",
+      "expected_context": [
+        "Total operating expenses for Q3 2024 were $14.3 billion. Research and development expenses were $7.9 billion, reflecting continued investment in AI and mixed reality technologies. Selling, general, and administrative expenses were $6.4 billion."
+      ],
+      "expected_source_chunks": [],
+      "numerical_values": {
+        "total_opex": "$14.3 billion",
+        "rd_expense": "$7.9 billion",
+        "sga_expense": "$6.4 billion"
+      },
+      "tags": ["opex", "expenses", "rd"]
+    },
+    {
+      "id": "qa_guidance_01",
+      "capability": "qa",
+      "question": "What guidance did management provide for the next quarter?",
+      "expected_answer": "Management guided for Q4 2024 revenue of $89-93 billion, with gross margin expected to be between 46% and 47%.",
+      "expected_context": [
+        "For Q4 2024, management expects revenue between $89 billion and $93 billion. Gross margin is expected to be between 46% and 47%. Operating expenses are expected to be between $14.2 billion and $14.4 billion."
+      ],
+      "expected_source_chunks": [],
+      "numerical_values": {
+        "revenue_guidance_low": "$89 billion",
+        "revenue_guidance_high": "$93 billion",
+        "margin_guidance_low": "46%",
+        "margin_guidance_high": "47%"
+      },
+      "tags": ["guidance", "forecast", "quarterly"]
+    },
+    {
+      "id": "qa_buyback_01",
+      "capability": "qa",
+      "question": "How much did the company spend on share buybacks?",
+      "expected_answer": "The company repurchased $26 billion in shares during Q3 2024 under its existing buyback authorization.",
+      "expected_context": [
+        "During Q3 2024, the company repurchased approximately $26 billion of its common stock. The Board of Directors authorized an additional $110 billion in share repurchases earlier in the fiscal year."
+      ],
+      "expected_source_chunks": [],
+      "numerical_values": {
+        "buyback_amount": "$26 billion",
+        "buyback_authorization": "$110 billion"
+      },
+      "tags": ["buyback", "capital_return", "shareholder"]
+    },
+    {
+      "id": "qa_debt_01",
+      "capability": "qa",
+      "question": "What is the company's total long-term debt?",
+      "expected_answer": "Total long-term debt was $95.3 billion as of the end of Q3 2024, down from $98.1 billion at the end of the prior fiscal year.",
+      "expected_context": [
+        "Long-term debt at the end of Q3 2024 was $95.3 billion, a decrease from $98.1 billion at the end of fiscal year 2023. The company continues to manage its debt portfolio through a combination of fixed and floating rate instruments."
+      ],
+      "expected_source_chunks": [],
+      "numerical_values": {
+        "long_term_debt": "$95.3 billion",
+        "prior_year_debt": "$98.1 billion"
+      },
+      "tags": ["debt", "balance_sheet", "fixed_income"]
+    },
+    {
+      "id": "qa_geographic_01",
+      "capability": "qa",
+      "question": "What was revenue from the Greater China region?",
+      "expected_answer": "Revenue from the Greater China region was $14.7 billion in Q3 2024, a decrease of 6% year over year.",
+      "expected_context": [
+        "Greater China revenue was $14.7 billion, down 6% from $15.6 billion in Q3 2023. The decline was attributed to increased competition from domestic smartphone manufacturers and macroeconomic headwinds."
+      ],
+      "expected_source_chunks": [],
+      "numerical_values": {
+        "china_revenue": "$14.7 billion",
+        "china_decline": "6%"
+      },
+      "tags": ["geographic", "china", "revenue"]
+    },
+    {
+      "id": "qa_dividend_01",
+      "capability": "qa",
+      "question": "What was the quarterly dividend per share?",
+      "expected_answer": "The quarterly dividend was $0.25 per share, a 4% increase from the prior year's $0.24.",
+      "expected_context": [
+        "The Board declared a quarterly cash dividend of $0.25 per share, payable on August 15, 2024. This represents a 4% increase over the prior year's dividend of $0.24 per share."
+      ],
+      "expected_source_chunks": [],
+      "numerical_values": {
+        "dividend_per_share": "$0.25",
+        "prior_dividend": "$0.24",
+        "dividend_increase": "4%"
+      },
+      "tags": ["dividend", "capital_return", "shareholder"]
+    },
+    {
+      "id": "qa_iphone_01",
+      "capability": "qa",
+      "question": "What was iPhone revenue in the quarter?",
+      "expected_answer": "iPhone revenue was $39.3 billion in Q3 2024, a slight decrease of 1% compared to $39.6 billion in Q3 2023.",
+      "expected_context": [
+        "iPhone revenue was $39.3 billion, compared to $39.6 billion in Q3 2023, representing a modest decline of approximately 1%. The iPhone 15 family continued to perform well despite typical seasonal patterns."
+      ],
+      "expected_source_chunks": [],
+      "numerical_values": {
+        "iphone_revenue": "$39.3 billion",
+        "prior_iphone_revenue": "$39.6 billion"
+      },
+      "tags": ["iphone", "product", "revenue"]
+    },
+    {
+      "id": "summarise_risk_01",
+      "capability": "summarise",
+      "question": "Summarise the key risk factors from the filing.",
+      "expected_answer": "Key risk factors include: (1) intense competitive pressure in all markets, particularly smartphones and services; (2) supply chain concentration risk in Asia; (3) regulatory risks including antitrust actions in the EU and US; (4) foreign exchange exposure from international operations; (5) dependence on third-party manufacturers; and (6) cybersecurity threats to customer data and intellectual property.",
+      "expected_context": [
+        "The company faces intense competition in all of its markets, particularly from Samsung, Google, and emerging Chinese manufacturers in smartphones.",
+        "Supply chain risks remain significant due to geographic concentration of manufacturing in China and Southeast Asia.",
+        "Regulatory risks include ongoing antitrust investigations by the European Commission and the US Department of Justice.",
+        "Approximately 60% of revenue is generated outside the United States, exposing the company to foreign exchange fluctuations.",
+        "The company depends on third-party manufacturers, principally Foxconn and TSMC, for the production of its products.",
+        "Cybersecurity threats continue to evolve, requiring ongoing investment in security infrastructure."
+      ],
+      "expected_source_chunks": [],
+      "numerical_values": {},
+      "tags": ["risk", "summary", "10k"]
+    },
+    {
+      "id": "summarise_financial_01",
+      "capability": "summarise",
+      "question": "Summarise the financial highlights from the earnings report.",
+      "expected_answer": "Q3 2024 financial highlights: (1) total revenue of $85.8B (+5% YoY); (2) gross margin improved to 46.3% from 44.5%; (3) diluted EPS of $1.40 (+11% YoY); (4) Services revenue hit all-time record of $24.2B (+14%); (5) $26B in share repurchases; (6) cash and securities totaling $153B.",
+      "expected_context": [
+        "Apple Inc. reported total net revenue of $85.8 billion for Q3 2024, up 5% year over year.",
+        "Gross margin improved to 46.3% compared to 44.5% in the prior year quarter.",
+        "Diluted earnings per share were $1.40, an 11% increase from $1.26.",
+        "Services revenue reached an all-time record of $24.2 billion, up 14% year over year.",
+        "The company repurchased approximately $26 billion of common stock during the quarter.",
+        "Total cash and marketable securities were approximately $153 billion."
+      ],
+      "expected_source_chunks": [],
+      "numerical_values": {
+        "revenue": "$85.8 billion",
+        "gross_margin": "46.3%",
+        "eps": "$1.40",
+        "services_revenue": "$24.2 billion"
+      },
+      "tags": ["financial", "highlights", "summary"]
+    },
+    {
+      "id": "summarise_mgmt_01",
+      "capability": "summarise",
+      "question": "Summarise management's commentary on AI strategy.",
+      "expected_answer": "Management highlighted Apple Intelligence as a cornerstone of future growth, with key points: (1) on-device AI models for privacy-first processing; (2) partnership with OpenAI for cloud-based tasks; (3) Apple Intelligence launching with iOS 18 in Fall 2024; (4) R&D spending of $7.9B primarily directed at AI capabilities; (5) focus on developer ecosystem with new AI APIs.",
+      "expected_context": [
+        "CEO Tim Cook emphasized Apple Intelligence as 'a defining moment for Apple,' noting the company's focus on privacy-preserving on-device AI models.",
+        "The partnership with OpenAI enables cloud-based generative AI features while maintaining Apple's privacy standards.",
+        "Apple Intelligence is expected to launch with iOS 18, iPadOS 18, and macOS Sequoia in Fall 2024.",
+        "R&D spending of $7.9 billion reflects the company's significant investment in artificial intelligence and machine learning capabilities.",
+        "New AI-focused developer APIs were announced at WWDC, allowing third-party apps to leverage Apple Intelligence features."
+      ],
+      "expected_source_chunks": [],
+      "numerical_values": {
+        "rd_spending": "$7.9 billion"
+      },
+      "tags": ["ai", "strategy", "management"]
+    },
+    {
+      "id": "summarise_segment_01",
+      "capability": "summarise",
+      "question": "Summarise the performance of each product segment.",
+      "expected_answer": "Product segment performance in Q3 2024: (1) iPhone: $39.3B revenue (-1% YoY), stable despite seasonal patterns; (2) Mac: $7.0B (+2%), driven by M3 chip family; (3) iPad: $7.2B (+24%), boosted by new M4 iPad Pro; (4) Wearables/Home: $8.1B (-2%), Apple Vision Pro launch offset by watch softness; (5) Services: $24.2B (+14%), all-time record driven by paid subscriptions exceeding 1 billion.",
+      "expected_context": [
+        "iPhone revenue was $39.3 billion, compared to $39.6 billion in Q3 2023.",
+        "Mac revenue was $7.0 billion, up 2% year over year, driven by the M3 chip family.",
+        "iPad revenue was $7.2 billion, a 24% increase driven by the new M4 iPad Pro launch.",
+        "Wearables, Home, and Accessories revenue was $8.1 billion, down 2% from the prior year.",
+        "Services revenue reached $24.2 billion, an all-time record with 14% growth."
+      ],
+      "expected_source_chunks": [],
+      "numerical_values": {
+        "iphone_revenue": "$39.3 billion",
+        "mac_revenue": "$7.0 billion",
+        "ipad_revenue": "$7.2 billion",
+        "wearables_revenue": "$8.1 billion",
+        "services_revenue": "$24.2 billion"
+      },
+      "tags": ["segment", "product", "summary"]
+    },
+    {
+      "id": "summarise_cashflow_01",
+      "capability": "summarise",
+      "question": "Summarise the cash flow statement highlights.",
+      "expected_answer": "Cash flow highlights: (1) operating cash flow of $28.9B; (2) free cash flow of $27.1B after $1.8B in capex; (3) $26B returned to shareholders via buybacks; (4) $3.8B in dividends paid; (5) net cash position (cash minus debt) of approximately $58B.",
+      "expected_context": [
+        "Operating cash flow was $28.9 billion for Q3 2024.",
+        "Capital expenditures were $1.8 billion, resulting in free cash flow of $27.1 billion.",
+        "The company returned over $29 billion to shareholders, including $26 billion in share repurchases and $3.8 billion in dividends.",
+        "Net cash position was approximately $58 billion, calculated as $153 billion in cash and securities less $95.3 billion in long-term debt."
+      ],
+      "expected_source_chunks": [],
+      "numerical_values": {
+        "operating_cash_flow": "$28.9 billion",
+        "free_cash_flow": "$27.1 billion",
+        "capex": "$1.8 billion",
+        "dividends_paid": "$3.8 billion"
+      },
+      "tags": ["cash_flow", "summary", "capital"]
+    },
+    {
+      "id": "compare_revenue_01",
+      "capability": "compare",
+      "question": "Compare Q3 2024 revenue to Q3 2023 revenue across all segments.",
+      "expected_answer": "Segment revenue comparison Q3 2024 vs Q3 2023: iPhone $39.3B vs $39.6B (-1%); Mac $7.0B vs $6.8B (+2%); iPad $7.2B vs $5.8B (+24%); Wearables $8.1B vs $8.3B (-2%); Services $24.2B vs $21.2B (+14%). Total revenue grew 5% from $81.8B to $85.8B, driven primarily by Services and iPad.",
+      "expected_context": [
+        "Total revenue grew 5% from $81.8 billion in Q3 2023 to $85.8 billion in Q3 2024.",
+        "iPhone revenue was $39.3 billion vs $39.6 billion in Q3 2023.",
+        "Mac revenue was $7.0 billion vs $6.8 billion, a 2% increase.",
+        "iPad revenue was $7.2 billion vs $5.8 billion, a 24% increase.",
+        "Wearables revenue was $8.1 billion vs $8.3 billion, a 2% decline.",
+        "Services revenue was $24.2 billion vs $21.2 billion, a 14% increase."
+      ],
+      "expected_source_chunks": [],
+      "numerical_values": {
+        "total_revenue_current": "$85.8 billion",
+        "total_revenue_prior": "$81.8 billion",
+        "ipad_growth": "24%",
+        "services_growth": "14%"
+      },
+      "tags": ["comparison", "revenue", "segment"]
+    },
+    {
+      "id": "compare_margin_01",
+      "capability": "compare",
+      "question": "Compare the gross margin trends over the last 4 quarters.",
+      "expected_answer": "Gross margin over the past 4 quarters: Q4 2023: 45.2%, Q1 2024: 45.9%, Q2 2024: 46.6%, Q3 2024: 46.3%. The trend shows steady improvement from 45.2% to 46.3%, with a slight sequential dip in Q3 2024 from Q2's peak of 46.6%.",
+      "expected_context": [
+        "Quarterly gross margin trend: Q4 2023 was 45.2%, Q1 2024 was 45.9%, Q2 2024 was 46.6%, and Q3 2024 was 46.3%.",
+        "The year-over-year improvement from 44.5% in Q3 2023 to 46.3% in Q3 2024 was driven by product mix shift toward higher-margin Services and cost efficiencies."
+      ],
+      "expected_source_chunks": [],
+      "numerical_values": {
+        "q4_2023_margin": "45.2%",
+        "q1_2024_margin": "45.9%",
+        "q2_2024_margin": "46.6%",
+        "q3_2024_margin": "46.3%"
+      },
+      "tags": ["comparison", "margin", "trend"]
+    },
+    {
+      "id": "compare_geographic_01",
+      "capability": "compare",
+      "question": "Compare revenue performance across geographic regions.",
+      "expected_answer": "Geographic revenue comparison for Q3 2024: Americas $37.7B (+3%), Europe $21.9B (+7%), Greater China $14.7B (-6%), Japan $5.1B (+6%), Rest of Asia Pacific $6.4B (+12%). Growth was strongest in Rest of Asia Pacific (+12%) and weakest in Greater China (-6%).",
+      "expected_context": [
+        "Americas revenue was $37.7 billion, up 3% year over year.",
+        "Europe revenue was $21.9 billion, up 7% year over year.",
+        "Greater China revenue was $14.7 billion, down 6% year over year.",
+        "Japan revenue was $5.1 billion, up 6% year over year.",
+        "Rest of Asia Pacific revenue was $6.4 billion, up 12% year over year."
+      ],
+      "expected_source_chunks": [],
+      "numerical_values": {
+        "americas_revenue": "$37.7 billion",
+        "europe_revenue": "$21.9 billion",
+        "china_revenue": "$14.7 billion",
+        "japan_revenue": "$5.1 billion",
+        "apac_revenue": "$6.4 billion"
+      },
+      "tags": ["comparison", "geographic", "revenue"]
+    },
+    {
+      "id": "compare_opex_01",
+      "capability": "compare",
+      "question": "Compare R&D spending to SG&A spending and their year-over-year changes.",
+      "expected_answer": "R&D spending was $7.9B (+8% YoY from $7.3B), while SG&A was $6.4B (+3% YoY from $6.2B). R&D grew faster than SG&A, reflecting the company's increased investment in AI and new technologies. R&D as a percentage of revenue was 9.2%, up from 8.9% last year.",
+      "expected_context": [
+        "R&D expenses were $7.9 billion, up 8% from $7.3 billion in Q3 2023, reflecting investment in AI and mixed reality.",
+        "SG&A expenses were $6.4 billion, up 3% from $6.2 billion in Q3 2023.",
+        "R&D as a percentage of revenue increased to 9.2% from 8.9% in the prior year quarter."
+      ],
+      "expected_source_chunks": [],
+      "numerical_values": {
+        "rd_expense": "$7.9 billion",
+        "rd_prior": "$7.3 billion",
+        "sga_expense": "$6.4 billion",
+        "sga_prior": "$6.2 billion",
+        "rd_pct_revenue": "9.2%"
+      },
+      "tags": ["comparison", "opex", "rd"]
+    },
+    {
+      "id": "compare_capital_01",
+      "capability": "compare",
+      "question": "Compare the capital allocation between share buybacks, dividends, and R&D investment.",
+      "expected_answer": "Capital allocation in Q3 2024: share buybacks $26B (largest allocation), R&D investment $7.9B, dividends $3.8B. Buybacks represented 69% of the $37.7B total capital deployment, underscoring the company's prioritization of share repurchases. R&D received 21% and dividends 10%.",
+      "expected_context": [
+        "The company repurchased $26 billion in shares during Q3 2024.",
+        "R&D spending was $7.9 billion for the quarter.",
+        "Dividends paid totaled $3.8 billion.",
+        "Total capital deployment including buybacks, R&D, and dividends was approximately $37.7 billion."
+      ],
+      "expected_source_chunks": [],
+      "numerical_values": {
+        "buybacks": "$26 billion",
+        "rd_investment": "$7.9 billion",
+        "dividends": "$3.8 billion"
+      },
+      "tags": ["comparison", "capital_allocation", "shareholder"]
+    },
+    {
+      "id": "compare_eps_01",
+      "capability": "compare",
+      "question": "Compare diluted EPS to basic EPS for the current and prior year quarter.",
+      "expected_answer": "Q3 2024: Basic EPS $1.42, Diluted EPS $1.40. Q3 2023: Basic EPS $1.27, Diluted EPS $1.26. Both basic and diluted EPS grew 11-12% year over year. The dilution impact was minimal (~$0.01-0.02) due to the company's aggressive share buyback program reducing the share count.",
+      "expected_context": [
+        "Basic earnings per share were $1.42 and diluted earnings per share were $1.40 for Q3 2024.",
+        "In Q3 2023, basic EPS was $1.27 and diluted EPS was $1.26.",
+        "The weighted average diluted share count decreased to 15.41 billion from 15.70 billion due to the share repurchase program."
+      ],
+      "expected_source_chunks": [],
+      "numerical_values": {
+        "basic_eps_current": "$1.42",
+        "diluted_eps_current": "$1.40",
+        "basic_eps_prior": "$1.27",
+        "diluted_eps_prior": "$1.26"
+      },
+      "tags": ["comparison", "eps", "earnings"]
+    },
+    {
+      "id": "extract_revenue_01",
+      "capability": "extract",
+      "question": "Extract all segment revenue figures as a JSON table.",
+      "expected_answer": "{\"segments\": [{\"name\": \"iPhone\", \"revenue_q3_2024\": \"$39.3B\", \"revenue_q3_2023\": \"$39.6B\", \"yoy_change\": \"-1%\"}, {\"name\": \"Mac\", \"revenue_q3_2024\": \"$7.0B\", \"revenue_q3_2023\": \"$6.8B\", \"yoy_change\": \"+2%\"}, {\"name\": \"iPad\", \"revenue_q3_2024\": \"$7.2B\", \"revenue_q3_2023\": \"$5.8B\", \"yoy_change\": \"+24%\"}, {\"name\": \"Wearables\", \"revenue_q3_2024\": \"$8.1B\", \"revenue_q3_2023\": \"$8.3B\", \"yoy_change\": \"-2%\"}, {\"name\": \"Services\", \"revenue_q3_2024\": \"$24.2B\", \"revenue_q3_2023\": \"$21.2B\", \"yoy_change\": \"+14%\"}]}",
+      "expected_context": [
+        "iPhone revenue: $39.3 billion (Q3 2024) vs $39.6 billion (Q3 2023)",
+        "Mac revenue: $7.0 billion (Q3 2024) vs $6.8 billion (Q3 2023)",
+        "iPad revenue: $7.2 billion (Q3 2024) vs $5.8 billion (Q3 2023)",
+        "Wearables, Home, and Accessories: $8.1 billion (Q3 2024) vs $8.3 billion (Q3 2023)",
+        "Services revenue: $24.2 billion (Q3 2024) vs $21.2 billion (Q3 2023)"
+      ],
+      "expected_source_chunks": [],
+      "numerical_values": {
+        "iphone_revenue": "$39.3 billion",
+        "mac_revenue": "$7.0 billion",
+        "ipad_revenue": "$7.2 billion",
+        "wearables_revenue": "$8.1 billion",
+        "services_revenue": "$24.2 billion"
+      },
+      "tags": ["extract", "segment", "revenue", "json"]
+    },
+    {
+      "id": "extract_quarterly_01",
+      "capability": "extract",
+      "question": "Extract all quarterly financial metrics for Q3 2024.",
+      "expected_answer": "{\"quarter\": \"Q3 2024\", \"total_revenue\": \"$85.8B\", \"gross_profit\": \"$39.7B\", \"gross_margin\": \"46.3%\", \"operating_income\": \"$25.4B\", \"net_income\": \"$21.4B\", \"diluted_eps\": \"$1.40\", \"operating_cash_flow\": \"$28.9B\", \"free_cash_flow\": \"$27.1B\"}",
+      "expected_context": [
+        "Total revenue: $85.8 billion",
+        "Gross profit: $39.7 billion, gross margin 46.3%",
+        "Operating income: $25.4 billion",
+        "Net income: $21.4 billion",
+        "Diluted EPS: $1.40",
+        "Operating cash flow: $28.9 billion",
+        "Free cash flow: $27.1 billion"
+      ],
+      "expected_source_chunks": [],
+      "numerical_values": {
+        "total_revenue": "$85.8 billion",
+        "gross_profit": "$39.7 billion",
+        "operating_income": "$25.4 billion",
+        "net_income": "$21.4 billion"
+      },
+      "tags": ["extract", "quarterly", "financials"]
+    },
+    {
+      "id": "extract_geographic_01",
+      "capability": "extract",
+      "question": "Extract revenue by geographic region as structured data.",
+      "expected_answer": "{\"geographic_revenue\": [{\"region\": \"Americas\", \"revenue\": \"$37.7B\", \"yoy_change\": \"+3%\"}, {\"region\": \"Europe\", \"revenue\": \"$21.9B\", \"yoy_change\": \"+7%\"}, {\"region\": \"Greater China\", \"revenue\": \"$14.7B\", \"yoy_change\": \"-6%\"}, {\"region\": \"Japan\", \"revenue\": \"$5.1B\", \"yoy_change\": \"+6%\"}, {\"region\": \"Rest of Asia Pacific\", \"revenue\": \"$6.4B\", \"yoy_change\": \"+12%\"}]}",
+      "expected_context": [
+        "Americas: $37.7 billion (+3%)",
+        "Europe: $21.9 billion (+7%)",
+        "Greater China: $14.7 billion (-6%)",
+        "Japan: $5.1 billion (+6%)",
+        "Rest of Asia Pacific: $6.4 billion (+12%)"
+      ],
+      "expected_source_chunks": [],
+      "numerical_values": {
+        "americas_revenue": "$37.7 billion",
+        "europe_revenue": "$21.9 billion",
+        "china_revenue": "$14.7 billion"
+      },
+      "tags": ["extract", "geographic", "json"]
+    },
+    {
+      "id": "extract_balance_01",
+      "capability": "extract",
+      "question": "Extract the key balance sheet items as of Q3 2024.",
+      "expected_answer": "{\"balance_sheet\": {\"cash_and_equivalents\": \"$29.8B\", \"total_cash_and_securities\": \"$153B\", \"accounts_receivable\": \"$22.3B\", \"total_current_assets\": \"$128.5B\", \"total_assets\": \"$364.8B\", \"long_term_debt\": \"$95.3B\", \"total_liabilities\": \"$279.4B\", \"shareholders_equity\": \"$85.4B\"}}",
+      "expected_context": [
+        "Cash and cash equivalents: $29.8 billion",
+        "Total cash, cash equivalents, and marketable securities: $153 billion",
+        "Accounts receivable: $22.3 billion",
+        "Total current assets: $128.5 billion",
+        "Total assets: $364.8 billion",
+        "Long-term debt: $95.3 billion",
+        "Total liabilities: $279.4 billion",
+        "Total shareholders' equity: $85.4 billion"
+      ],
+      "expected_source_chunks": [],
+      "numerical_values": {
+        "cash": "$29.8 billion",
+        "total_assets": "$364.8 billion",
+        "long_term_debt": "$95.3 billion",
+        "shareholders_equity": "$85.4 billion"
+      },
+      "tags": ["extract", "balance_sheet", "json"]
+    },
+    {
+      "id": "extract_ratios_01",
+      "capability": "extract",
+      "question": "Extract key financial ratios for the quarter.",
+      "expected_answer": "{\"financial_ratios\": {\"gross_margin\": \"46.3%\", \"operating_margin\": \"29.6%\", \"net_margin\": \"24.9%\", \"return_on_equity\": \"25.1%\", \"debt_to_equity\": \"1.12\", \"current_ratio\": \"1.07\", \"pe_ratio_ttm\": \"34.2\"}}",
+      "expected_context": [
+        "Gross margin: 46.3%",
+        "Operating margin: 29.6% ($25.4B operating income on $85.8B revenue)",
+        "Net profit margin: 24.9% ($21.4B net income on $85.8B revenue)",
+        "Return on equity: approximately 25.1%",
+        "Debt-to-equity ratio: 1.12 ($95.3B debt / $85.4B equity)",
+        "Current ratio: 1.07 ($128.5B current assets / $120.1B current liabilities)",
+        "Trailing P/E ratio: approximately 34.2 based on TTM EPS of $6.57"
+      ],
+      "expected_source_chunks": [],
+      "numerical_values": {
+        "gross_margin": "46.3%",
+        "operating_margin": "29.6%",
+        "net_margin": "24.9%",
+        "pe_ratio": "34.2"
+      },
+      "tags": ["extract", "ratios", "financial_analysis"]
+    },
+    {
+      "id": "extract_cashflow_01",
+      "capability": "extract",
+      "question": "Extract the cash flow statement items as structured data.",
+      "expected_answer": "{\"cash_flow\": {\"operating_cash_flow\": \"$28.9B\", \"capital_expenditures\": \"-$1.8B\", \"free_cash_flow\": \"$27.1B\", \"share_repurchases\": \"-$26.0B\", \"dividends_paid\": \"-$3.8B\", \"acquisitions\": \"-$0.4B\", \"net_change_in_cash\": \"-$2.1B\"}}",
+      "expected_context": [
+        "Operating cash flow: $28.9 billion",
+        "Capital expenditures: $1.8 billion",
+        "Free cash flow: $27.1 billion (operating cash flow minus capex)",
+        "Share repurchases: $26.0 billion",
+        "Dividends paid: $3.8 billion",
+        "Acquisitions: $0.4 billion",
+        "Net decrease in cash: $2.1 billion"
+      ],
+      "expected_source_chunks": [],
+      "numerical_values": {
+        "operating_cash_flow": "$28.9 billion",
+        "capex": "$1.8 billion",
+        "free_cash_flow": "$27.1 billion"
+      },
+      "tags": ["extract", "cash_flow", "json"]
+    }
+  ]
+}

@@ -210,7 +210,8 @@ class EvaluateRequest(BaseModel):
     Example:
         {
             "document_id": 1,
-            "eval_dataset": "default"
+            "eval_dataset": "default",
+            "provider_id": "anthropic/claude-sonnet-4-6"
         }
     """
 
@@ -224,4 +225,14 @@ class EvaluateRequest(BaseModel):
     eval_dataset: str = Field(
         default="default",
         description="Name of the evaluation dataset to use",
+    )
+
+    # Optional: specify a provider for cross-provider evaluation
+    # Uses Phase 4's create_provider_from_id() format
+    provider_id: str | None = Field(
+        default=None,
+        description=(
+            "Provider to evaluate (e.g., 'anthropic/claude-sonnet-4-6'). "
+            "If omitted, uses the default configured provider."
+        ),
     )
