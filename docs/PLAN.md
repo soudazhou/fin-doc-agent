@@ -626,7 +626,7 @@ Client → Authorization: Bearer sk-abc123...
 - [ ] Ensure `docker compose up` starts everything cleanly
 - [ ] Add error handling and logging throughout
 - [ ] Final README updates with demo walkthrough, screenshots, and benchmark results
-- [ ] Add a demo script: ingest 10+ docs → ask all 4 capabilities → compare providers → run benchmarks → evaluate
+- [x] Add a demo script: ingest → ask all 4 capabilities → compare providers → run benchmarks → evaluate (`scripts/demo.sh`)
 - [ ] Document benchmark results (chunk sizes, vector stores, provider comparison) in `docs/BENCHMARKS.md`
 - [x] Add GitHub Actions CI workflow (ruff lint + pytest on every PR)
 - [x] Fix all pre-existing lint errors (12 errors across 4 files) for clean CI
