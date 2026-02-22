@@ -27,11 +27,13 @@
 # =============================================================================
 
 import logging
-from contextlib import asynccontextmanager
 from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
 
+from app.api.ingest import router as ingest_router
 from app.config import settings
 from app.db.engine import async_engine
 from app.db.models import Base
@@ -88,6 +90,11 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         await conn.run_sync(Base.metadata.create_all)
     logger.info("Database tables verified/created")
 
+    # Ensure upload directory exists for PDF ingestion (Phase 2)
+    upload_dir = Path(settings.upload_dir)
+    upload_dir.mkdir(parents=True, exist_ok=True)
+    logger.info("Upload directory: %s", upload_dir.resolve())
+
     yield
 
     # --- Shutdown ---
@@ -116,6 +123,18 @@ app = FastAPI(
     version=settings.app_version,
     lifespan=lifespan,
 )
+
+
+# ---------------------------------------------------------------------------
+# API Routers
+# ---------------------------------------------------------------------------
+# Each router handles a specific domain. Adding them here keeps main.py thin.
+#
+# Phase 2: Document ingestion (upload, parse, chunk, embed, store)
+# Phase 3: Question answering (/ask) — to be added
+# Phase 4: Evaluation (/evaluate) — to be added
+# ---------------------------------------------------------------------------
+app.include_router(ingest_router)
 
 
 # ---------------------------------------------------------------------------

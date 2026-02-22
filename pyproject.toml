@@ -66,6 +66,13 @@ dependencies = [
     # Used by SQLAlchemy's async engine under the hood.
     "asyncpg>=0.30.0",
 
+    # psycopg2-binary: PostgreSQL sync driver for Celery workers.
+    # DESIGN DECISION: Celery workers are synchronous and cannot use asyncpg.
+    # The `-binary` variant includes pre-compiled C extensions, avoiding the
+    # need for PostgreSQL development headers at build time.
+    # In production, prefer `psycopg2` (non-binary) for security audit compliance.
+    "psycopg2-binary>=2.9.10",
+
     # --- Vector Store (Pluggable) ---
     # DESIGN DECISION: We implement BOTH pgvector and Chroma behind a common
     # VectorStore protocol, then benchmark head-to-head (Recall@k, MRR, latency).
@@ -77,7 +84,8 @@ dependencies = [
 
     # ChromaDB: Lightweight embedding database.
     # Pros: Simple API, fast prototyping, in-process or client/server modes.
-    "chromadb>=0.6.3",
+    # NOTE: >=1.5.1 required for Pydantic v2 + Python 3.14 compatibility.
+    "chromadb>=1.5.1",
 
     # --- Task Queue ---
     # Celery: Distributed task queue for background processing.
@@ -192,6 +200,9 @@ testpaths = ["tests"]
 [tool.mypy]
 python_version = "3.12"
 strict = true
+
+[tool.hatch.build.targets.wheel]
+packages = ["app"]
 
 [build-system]
 requires = ["hatchling"]
