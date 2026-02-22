@@ -188,8 +188,13 @@ curl -X POST http://localhost:8000/ask \
 
 ### Local Development (without Docker)
 
+Requires Python 3.12+ and [uv](https://docs.astral.sh/uv/):
+
 ```bash
-# Install dependencies
+# Verify Python version (3.12+ required)
+python3 --version
+
+# Install all dependencies including dev/test
 uv sync --group dev
 
 # Start PostgreSQL and Redis (still via Docker)
@@ -200,6 +205,9 @@ uv run uvicorn app.main:app --reload
 
 # Run Celery worker (separate terminal)
 uv run celery -A app.workers.celery_app worker --loglevel=info
+
+# Run tests to verify setup
+uv run pytest tests/ -v
 ```
 
 ## API Endpoints

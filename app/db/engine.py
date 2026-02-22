@@ -17,8 +17,23 @@
 # 1. FastAPI request arrives
 # 2. `get_async_session` dependency creates a new session
 # 3. Route handler uses session for DB operations
-# 4. Session is automatically closed when the request completes
+# 4. Session auto-commits on exit and is closed when the request completes
 # 5. On exception, the transaction is rolled back
+#
+# COMMIT POLICY:
+# Two session patterns exist in this codebase:
+#
+# 1. Dependency-injected (get_async_session via Depends):
+#    Auto-commits when the request handler returns. Endpoints MAY call
+#    session.commit() mid-handler if they need a generated ID before the
+#    handler exits (e.g., evaluate.py commits an EvalRun to get run_id,
+#    then passes it to a background task). The auto-commit at exit is a
+#    no-op if no further changes were made.
+#
+# 2. Self-managed (async_session_factory() directly):
+#    Used by background tasks (ask.py _persist_metric) and middleware
+#    (audit.py) that run outside the request dependency lifecycle.
+#    These MUST commit explicitly.
 # =============================================================================
 
 from collections.abc import AsyncGenerator, Generator

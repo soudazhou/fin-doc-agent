@@ -174,10 +174,11 @@ async def compare_providers(
     winner = _compute_winner(results)
 
     # --- Step 5: Persist metrics ---
+    truncated_q = request.question[:500]
     for r in results:
         metric = QueryMetric(
             document_id=request.document_id,
-            question=request.question,
+            question=truncated_q,
             capability=request.capability,
             provider_id=r.provider_id,
             model=r.model if r.error is None else None,
