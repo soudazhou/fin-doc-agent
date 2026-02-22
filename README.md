@@ -1,5 +1,7 @@
 # Financial Document Q&A Agent
 
+[![CI](https://github.com/soudazhou/fin-doc-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/soudazhou/fin-doc-agent/actions/workflows/ci.yml)
+
 A production-grade **agentic AI system** for financial document analysis. Goes beyond basic RAG with autonomous search, multi-capability agents, provider A/B testing, retrieval benchmarking, eval feedback loops, and access control.
 
 ## Why This Project Exists

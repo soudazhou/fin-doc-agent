@@ -1,0 +1,43 @@
+# =============================================================================
+# CI — Lint & Test on Every PR
+# =============================================================================
+#
+# Runs ruff (lint) and pytest (140+ unit tests) on every push to main
+# and every pull request targeting main.
+#
+# No external services needed — all tests mock DB, Redis, and API calls.
+# Uses uv for fast dependency installation with caching.
+# =============================================================================
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+
+      - name: Set up Python 3.12
+        run: uv python install 3.12
+
+      - name: Install dependencies
+        run: uv sync --group dev
+
+      - name: Lint with ruff
+        run: uv run ruff check
+
+      - name: Run tests
+        run: uv run pytest tests/ -v

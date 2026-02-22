@@ -52,7 +52,10 @@ class AskRequest(BaseModel):
     # If None, searches across ALL ingested documents
     document_id: int | None = Field(
         default=None,
-        description="Restrict search to a specific document ID. If omitted, searches all documents.",
+        description=(
+            "Restrict search to a specific document ID. "
+            "If omitted, searches all documents."
+        ),
         examples=[1],
     )
 
@@ -66,7 +69,8 @@ class AskRequest(BaseModel):
         description=(
             "Agent capability to use. If omitted, auto-detected from the question. "
             "Options: 'qa' (answer questions), 'summarise' (structured summary), "
-            "'compare' (cross-document comparison), 'extract' (structured data extraction)."
+            "'compare' (cross-document comparison), "
+            "'extract' (structured data extraction)."
         ),
     )
 
