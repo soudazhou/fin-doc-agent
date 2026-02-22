@@ -295,7 +295,7 @@ Key architectural decisions are documented in two places:
 - [x] **Phase 4**: A/B comparison & benchmarking — provider comparison, retrieval latency, cost tracking
 - [x] **Phase 5**: Evaluation & feedback loops — golden dataset, 6 metrics, regression tracking, failure analysis
 - [x] **Phase 6**: Authorisation — API keys, document ACL, audit logging, rate limiting
-- [ ] **Phase 7**: Polish — sample data, demo script, benchmark documentation
+- [x] **Phase 7**: Polish — CI, demo script, benchmark documentation, `.env.example`
 
 ## Running Tests
 
