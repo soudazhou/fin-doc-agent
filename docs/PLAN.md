@@ -672,7 +672,7 @@ All pure-logic tests run via `uv run pytest tests/` with zero external dependenc
 - Chunker, vectorstore (Chroma in-memory), agent classification, LLM injection via mocks
 - Eval metrics (numerical accuracy, retrieval recall@k), eval runner (dataset loading, test case execution, pass/fail), golden dataset validation
 - Auth: key generation/hashing, auth dependency, scope checking, document ACL, rate limiter, request/response model validation
-- 140 tests passing as of Phase 6 (107 from Phases 1-5 + 33 new auth tests)
+- 138 tests passing (107 from Phases 1-5 + 33 auth - 2 removed in cleanup)
 
 ### Integration Tests (require API keys + running services)
 

@@ -136,8 +136,3 @@ def estimate_cost(
         pricing.input_cost_per_token * input_tokens
         + pricing.output_cost_per_token * output_tokens
     )
-
-
-def get_pricing(provider_type: str, model: str) -> ModelPricing | None:
-    """Look up pricing for a specific provider+model combination."""
-    return PRICING_REGISTRY.get((provider_type, model))

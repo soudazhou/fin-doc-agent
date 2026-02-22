@@ -337,15 +337,43 @@ Key architectural decisions are documented in two places:
 - [x] **Phase 6**: Authorisation — API keys, document ACL, audit logging, rate limiting
 - [x] **Phase 7**: Polish — CI, demo script, benchmark documentation, `.env.example`
 
-## Running Tests
+## Testing Strategy
+
+### Unit Tests (CI — no API keys)
+
+138 tests run on every PR via GitHub Actions. All external dependencies (LLM, database, Redis) are mocked:
 
 ```bash
-# Unit tests (140 tests, no API keys required)
-uv run pytest tests/
-
-# RAG evaluation suite
-uv run pytest tests/eval/ -v
+uv run pytest tests/ -v
 ```
+
+| Test Suite | Tests | What It Covers |
+|-----------|-------|----------------|
+| `test_chunker.py` | 10 | Token-based text splitting, overlap, metadata |
+| `test_vectorstore.py` | 6 | ChromaDB in-memory add/search/filtering |
+| `test_agents.py` | 14 | Intent classification, query rewriting, analyst prompts |
+| `test_benchmark.py` | 14 | Pricing estimation, provider ID parsing, winner logic |
+| `test_auth.py` | 33 | Key generation, scopes, ACL, rate limiting |
+| `eval/test_eval_metrics.py` | 27 | Numerical accuracy, retrieval recall@k |
+| `eval/test_eval_runner.py` | 13 | Dataset loading, test execution, pass/fail |
+| `eval/test_golden_dataset.py` | 11 | Golden dataset schema validation |
+
+### Integration Testing (via Eval Suite)
+
+The eval suite (`POST /evaluate`) **is** the integration test — it runs the real RAG pipeline (search + LLM + retrieval) against a golden dataset and measures quality with 6 metrics. This is more valuable than custom integration tests because it detects regressions, not just crashes.
+
+```bash
+# Ingest a document, then run the eval suite
+curl -X POST http://localhost:8000/evaluate \
+  -H "Content-Type: application/json" \
+  -d '{"document_id": 1}'
+
+# Check results
+curl http://localhost:8000/evaluate/history
+curl http://localhost:8000/evaluate/failures
+```
+
+**Why not separate integration tests?** The eval suite already tests every layer (HTTP → agents → vector search → LLM → DB persistence) and adds quality measurement (faithfulness, numerical accuracy, etc.) on top. Writing duplicate integration tests would cost more to maintain with less insight. Performance experiments (chunk sizes, vector stores) are run as [benchmark runs](docs/benchmark-runs/) instead.
 
 ## End-to-End Verification
 

@@ -17,9 +17,7 @@ from app.agents.orchestrator import ask
 from app.services.llm import LLMResponse, _parse_provider_id
 from app.services.pricing import (
     PRICING_REGISTRY,
-    ModelPricing,
     estimate_cost,
-    get_pricing,
 )
 
 
@@ -64,15 +62,6 @@ class TestPricingRegistry:
     def test_zero_tokens_returns_zero(self):
         cost = estimate_cost("anthropic", "claude-sonnet-4-6", 0, 0)
         assert cost == 0.0
-
-    def test_get_pricing_returns_model_pricing(self):
-        pricing = get_pricing("anthropic", "claude-sonnet-4-6")
-        assert isinstance(pricing, ModelPricing)
-        assert pricing.provider_label == "Anthropic"
-
-    def test_get_pricing_unknown_returns_none(self):
-        pricing = get_pricing("unknown", "model")
-        assert pricing is None
 
 
 # ---------------------------------------------------------------------------
