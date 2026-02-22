@@ -628,7 +628,8 @@ Client → Authorization: Bearer sk-abc123...
 - [ ] Final README updates with demo walkthrough, screenshots, and benchmark results
 - [ ] Add a demo script: ingest 10+ docs → ask all 4 capabilities → compare providers → run benchmarks → evaluate
 - [ ] Document benchmark results (chunk sizes, vector stores, provider comparison) in `docs/BENCHMARKS.md`
-- [ ] Add GitHub Actions CI workflow (ruff lint + pytest on every PR)
+- [x] Add GitHub Actions CI workflow (ruff lint + pytest on every PR)
+- [x] Fix all pre-existing lint errors (12 errors across 4 files) for clean CI
 - [ ] Integration smoke tests (deferred from Phase 4 — require API keys + running services):
   - [ ] `POST /compare` with two real providers returns side-by-side results
   - [ ] `POST /benchmark/retrieval` returns latency statistics against ingested chunks

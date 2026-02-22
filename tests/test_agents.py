@@ -9,13 +9,11 @@
 from __future__ import annotations
 
 import asyncio
-import json
-from dataclasses import dataclass
 from unittest.mock import AsyncMock, patch
 
 from app.agents.analyst import AnalysisResult, _format_context, analyse
 from app.agents.orchestrator import _classify_question
-from app.agents.search import SearchResult, _simplify_query
+from app.agents.search import _simplify_query
 from app.services.llm import LLMResponse
 from app.services.vectorstore import VectorSearchResult
 
@@ -247,7 +245,7 @@ class TestLLMProviderFactory:
             ):
                 try:
                     llm.get_llm_provider()
-                    assert False, "Should have raised ValueError"
+                    raise AssertionError("Should have raised ValueError")
                 except ValueError as e:
                     assert "API key" in str(e)
         finally:

@@ -75,7 +75,7 @@ class Base(DeclarativeBase):
     pass
 
 
-class DocumentStatus(str, enum.Enum):
+class DocumentStatus(enum.StrEnum):
     """
     Tracks the ingestion pipeline state for a document.
 
@@ -164,7 +164,11 @@ class Document(Base):
     )
 
     def __repr__(self) -> str:
-        return f"<Document(id={self.id}, filename='{self.filename}', status={self.status})>"
+        return (
+            f"<Document(id={self.id}, "
+            f"filename='{self.filename}', "
+            f"status={self.status})>"
+        )
 
 
 class Chunk(Base):

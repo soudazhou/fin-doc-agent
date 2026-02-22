@@ -174,7 +174,10 @@ app.add_middleware(AuditLoggingMiddleware)
     response_model=HealthResponse,
     tags=["System"],
     summary="Health check",
-    description="Verify the API is running. Used by Docker health checks and load balancers.",
+    description=(
+        "Verify the API is running. "
+        "Used by Docker health checks and load balancers."
+    ),
 )
 async def health_check() -> HealthResponse:
     """Return basic health status."""

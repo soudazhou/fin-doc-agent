@@ -117,10 +117,10 @@ class Settings(BaseSettings):
     # Use cheap models (DeepSeek V3 at $0.14/1M) for dev, Claude for demos.
     #
     # Example configs:
-    #   DeepSeek V3:  provider=openai_compatible, base_url=https://api.deepseek.com/v1, model=deepseek-chat
-    #   Qwen 3.5:    provider=openai_compatible, base_url=https://dashscope.aliyuncs.com/compatible-mode/v1, model=qwen-plus
-    #   GLM-5:       provider=openai_compatible, base_url=https://open.bigmodel.cn/api/paas/v4, model=glm-5
-    #   Claude:      provider=anthropic, model=claude-sonnet-4-6
+    #   DeepSeek V3:  openai_compatible, deepseek.com, deepseek-chat
+    #   Qwen 3.5:    openai_compatible, dashscope.aliyuncs.com, qwen-plus
+    #   GLM-5:       openai_compatible, open.bigmodel.cn, glm-5
+    #   Claude:      anthropic, claude-sonnet-4-6
     # -------------------------------------------------------------------------
     llm_provider: str = "anthropic"  # "anthropic" or "openai_compatible"
     llm_base_url: str | None = None  # Only needed for openai_compatible
