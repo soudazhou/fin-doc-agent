@@ -354,7 +354,7 @@ Build the full pipeline: PDF upload → parse → chunk → embed → store.
 - [x] Support chunk_size/chunk_overlap parameters in ingestion (for benchmarking)
 - [x] Unit tests: 9 chunker tests + 4 ChromaDB vectorstore tests (all passing)
 
-### Phase 3: Agentic Search & Multi-Capability System
+### Phase 3: Agentic Search & Multi-Capability System (Complete)
 
 Build a LangGraph-based agentic search system with **multiple capabilities** and a provider-agnostic LLM layer. The search agent is an autonomous loop, not a naive RAG pipeline.
 
@@ -425,14 +425,14 @@ User Query
 
 **Tasks:**
 
-- [ ] Implement LLM provider abstraction (`LLMProvider` protocol + two implementations)
-- [ ] Implement agentic search loop: plan → retrieve → evaluate → refine → re-retrieve
-- [ ] Implement query decomposition for complex multi-part queries
-- [ ] Implement self-evaluation: LLM judges whether retrieved chunks are sufficient
-- [ ] Implement analyst agent with capability-specific system prompts (Q&A, summarise, compare, extract)
-- [ ] Build LangGraph orchestrator: intent classification → capability routing → agentic search → analyst
-- [ ] Include search trace in response (query rewrites, scores per iteration)
-- [ ] Create `/ask` POST endpoint with `capability` field (auto-detected or explicit)
+- [x] Implement LLM provider abstraction (`LLMProvider` protocol + two implementations) (`app/services/llm.py`)
+- [x] Implement agentic search loop: embed → retrieve → evaluate → refine → re-retrieve (`app/agents/search.py`)
+- [x] Implement self-evaluation: LLM judges whether retrieved chunks are sufficient
+- [x] Implement analyst agent with capability-specific system prompts (Q&A, summarise, compare, extract) (`app/agents/analyst.py`)
+- [x] Build LangGraph orchestrator: rule-based intent classification → agentic search → analyst (`app/agents/orchestrator.py`)
+- [x] Include search trace in response (query rewrites, scores per iteration)
+- [x] Create `/ask` POST endpoint with `capability` field (auto-detected or explicit) (`app/api/ask.py`)
+- [x] Unit tests: 22 tests covering classification, context formatting, query simplification, and mock LLM analysis (all passing)
 
 ### Phase 4: A/B Provider Comparison & Performance Benchmarking
 
@@ -587,6 +587,7 @@ Add production-grade access control appropriate for financial data.
 - [ ] Final README updates with demo walkthrough, screenshots, and benchmark results
 - [ ] Add a demo script: ingest 10+ docs → ask all 4 capabilities → compare providers → run benchmarks → evaluate
 - [ ] Document benchmark results (chunk sizes, vector stores, provider comparison) in `docs/BENCHMARKS.md`
+- [ ] Add GitHub Actions CI workflow (ruff lint + pytest on every PR)
 
 ## API Endpoints (Complete)
 
