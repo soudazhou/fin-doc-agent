@@ -145,6 +145,9 @@ docker compose up
 # 4. Verify — API docs available at:
 #    http://localhost:8000/docs     (Swagger UI)
 #    http://localhost:5555          (Flower — Celery monitoring)
+
+# 5. Run the demo script (optional — walks through all features)
+./scripts/demo.sh path/to/earnings_report.pdf
 ```
 
 ### Local Development (without Docker)
@@ -265,6 +268,9 @@ fin-doc-agent/
 │   ├── samples/                # Sample financial PDFs
 │   └── eval/golden_datasets/   # Golden datasets for evaluation
 │       └── default.json        # 29 test cases across 4 capabilities
+├── scripts/
+│   ├── demo.sh                 # End-to-end demo (all features in one run)
+│   └── init-db.sql             # PostgreSQL init (enables pgvector extension)
 ├── docs/
 │   ├── PLAN.md                 # Implementation plan & design decisions
 │   └── BENCHMARKS.md           # Retrieval accuracy & provider comparison results
