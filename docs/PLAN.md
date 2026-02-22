@@ -626,7 +626,8 @@ Client → Authorization: Bearer sk-abc123...
 - [x] Fix all pre-existing lint errors (12 errors across 4 files) for clean CI
 - [x] Add a demo script: ingest → ask all 4 capabilities → compare providers → run benchmarks → evaluate (`scripts/demo.sh`)
 - [x] Document benchmark methodology, metrics, and provider pricing in `docs/BENCHMARKS.md`
-- [x] Create `.env.example` with all 6 LLM provider presets and full configuration template
+- [x] Create `.env.example` with 7 LLM provider presets (including Alibaba Cloud all-in-one) and full configuration template
+- [x] Make embedding endpoint configurable (`EMBEDDING_BASE_URL`) so the full stack can run on a single Alibaba Cloud (DashScope) API key
 - [x] Final README updates — mark Phase 7 complete, add demo script reference
 - [x] Add sample financial PDFs — synthetic Apple Q3 2024 earnings report aligned with golden dataset (`scripts/generate_sample_pdf.py`, `data/samples/apple_q3_2024_earnings.pdf`)
 - [ ] Populate `docs/BENCHMARKS.md` results tables after running benchmarks with real data

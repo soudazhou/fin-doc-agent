@@ -84,7 +84,7 @@ class Settings(BaseSettings):
     # No defaults are provided to prevent accidental use of invalid keys.
     #
     # ANTHROPIC_API_KEY: For Claude API (Analyst agent reasoning)
-    # OPENAI_API_KEY: For text-embedding-3-small (embedding generation only)
+    # OPENAI_API_KEY: For embeddings (OpenAI or any OpenAI-compatible API)
     # -------------------------------------------------------------------------
     anthropic_api_key: str = ""
     openai_api_key: str = ""
@@ -92,16 +92,19 @@ class Settings(BaseSettings):
     # -------------------------------------------------------------------------
     # Embedding Configuration
     # -------------------------------------------------------------------------
-    # DESIGN DECISION: text-embedding-3-small is chosen for this demo because:
-    # 1. Good quality at very low cost ($0.02/1M tokens)
-    # 2. 1536 dimensions — standard size, good balance of quality vs storage
-    # 3. No GPU required (API-based)
-    # In production, you might consider text-embedding-3-large (3072 dims)
-    # or a self-hosted model like Nomic Embed V2 for cost savings at scale.
+    # DESIGN DECISION: Embeddings use the OpenAI SDK with a configurable
+    # base_url, so any OpenAI-compatible embedding API works:
+    #   - OpenAI text-embedding-3-small (default)
+    #   - Alibaba Cloud text-embedding-v3 via DashScope
+    #   - Any other OpenAI-compatible endpoint
+    #
+    # Set EMBEDDING_BASE_URL to point at a non-OpenAI provider.
+    # Leave it unset (None) to use the default OpenAI endpoint.
     # -------------------------------------------------------------------------
     embedding_model: str = "text-embedding-3-small"
     embedding_dimensions: int = 1536
-    embedding_batch_size: int = 100  # Chunks per OpenAI API call
+    embedding_batch_size: int = 100  # Texts per API call
+    embedding_base_url: str | None = None  # OpenAI-compatible endpoint override
 
     # -------------------------------------------------------------------------
     # LLM Configuration — Multi-Provider

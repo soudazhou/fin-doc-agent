@@ -1,20 +1,19 @@
 # =============================================================================
-# OpenAI Embedding Service — Batch Vector Generation
+# Embedding Service — Batch Vector Generation (Provider-Agnostic)
 # =============================================================================
 #
-# Generates vector embeddings using OpenAI's text-embedding-3-small API.
-# Provides batch processing for efficient ingestion and single-query
-# embedding for retrieval.
+# Generates vector embeddings using any OpenAI-compatible embedding API.
+# Supports OpenAI, Alibaba Cloud (DashScope), and any other provider that
+# implements the OpenAI embeddings endpoint.
 #
-# DESIGN DECISION: OpenAI embeddings (not self-hosted) because:
-# 1. No GPU required — API-based, works anywhere
-# 2. High quality at low cost ($0.02/1M tokens)
-# 3. 1536 dimensions — good balance of quality vs storage
-# 4. Anthropic does not offer an embedding API
+# DESIGN DECISION: OpenAI SDK with configurable base_url.
+# The OpenAI SDK is the de facto standard — most providers (Alibaba Cloud,
+# DeepSeek, etc.) expose OpenAI-compatible APIs. By making base_url
+# configurable, we support all of them with zero code changes.
 #
 # DESIGN DECISION: Sync-only for now. Celery workers (the primary consumer
 # during ingestion) are synchronous. An async version (using AsyncOpenAI)
-# can be added in Phase 3 if FastAPI endpoints need direct embedding.
+# can be added if FastAPI endpoints need direct embedding.
 #
 # DESIGN DECISION: No retry logic in the embedder. Retries are handled at
 # the Celery task level (max_retries=3, exponential backoff). This keeps
@@ -39,27 +38,44 @@ logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
-# OpenAI Client — Lazy Singleton
+# Embedding Client — Lazy Singleton
 # ---------------------------------------------------------------------------
 # DESIGN DECISION: Module-level client instance.
 # The OpenAI client manages its own HTTP connection pool and is thread-safe.
 # Creating one per call would waste connection setup time.
 # Lazy initialization avoids import-time failures when API key isn't set.
+#
+# DESIGN DECISION: API key resolution order:
+#   1. OPENAI_API_KEY (explicit embedding key)
+#   2. LLM_API_KEY (shared key — e.g. one DashScope key for LLM + embeddings)
+# This lets users run both LLM and embeddings off a single Alibaba Cloud key.
 # ---------------------------------------------------------------------------
 
 _client: OpenAI | None = None
 
 
 def _get_client() -> OpenAI:
-    """Lazily initialize and cache the OpenAI client."""
+    """Lazily initialize and cache the embedding client."""
     global _client
     if _client is None:
-        if not settings.openai_api_key:
+        resolved_key = settings.openai_api_key or settings.llm_api_key
+        if not resolved_key:
             raise ValueError(
-                "OPENAI_API_KEY is not set. Required for embedding generation. "
-                "Set it in .env or as an environment variable."
+                "No API key configured for embeddings. "
+                "Set OPENAI_API_KEY or LLM_API_KEY in .env"
             )
-        _client = OpenAI(api_key=settings.openai_api_key)
+
+        client_kwargs: dict = {"api_key": resolved_key}
+        if settings.embedding_base_url:
+            client_kwargs["base_url"] = settings.embedding_base_url
+
+        _client = OpenAI(**client_kwargs)
+
+        logger.info(
+            "Initialized embedding client (model=%s, base_url=%s)",
+            settings.embedding_model,
+            settings.embedding_base_url or "https://api.openai.com/v1",
+        )
     return _client
 
 
