@@ -622,15 +622,15 @@ Client → Authorization: Bearer sk-abc123...
 
 ### Phase 7: Polish & Documentation
 
-- [ ] Add sample financial PDFs (public company earnings reports, 10-K excerpts, 10+ docs for scale testing)
-- [ ] Ensure `docker compose up` starts everything cleanly
-- [ ] Add error handling and logging throughout
-- [ ] Final README updates with demo walkthrough, screenshots, and benchmark results
-- [x] Add a demo script: ingest → ask all 4 capabilities → compare providers → run benchmarks → evaluate (`scripts/demo.sh`)
-- [ ] Document benchmark results (chunk sizes, vector stores, provider comparison) in `docs/BENCHMARKS.md`
 - [x] Add GitHub Actions CI workflow (ruff lint + pytest on every PR)
 - [x] Fix all pre-existing lint errors (12 errors across 4 files) for clean CI
-- [ ] Integration smoke tests (deferred from Phase 4 — require API keys + running services):
+- [x] Add a demo script: ingest → ask all 4 capabilities → compare providers → run benchmarks → evaluate (`scripts/demo.sh`)
+- [x] Document benchmark methodology, metrics, and provider pricing in `docs/BENCHMARKS.md`
+- [x] Create `.env.example` with all 6 LLM provider presets and full configuration template
+- [x] Final README updates — mark Phase 7 complete, add demo script reference
+- [ ] Add sample financial PDFs (public company earnings reports, 10-K excerpts)
+- [ ] Populate `docs/BENCHMARKS.md` results tables after running benchmarks with real data
+- [ ] Integration smoke tests (require API keys + running services):
   - [ ] `POST /compare` with two real providers returns side-by-side results
   - [ ] `POST /benchmark/retrieval` returns latency statistics against ingested chunks
   - [ ] `GET /metrics` returns aggregated provider stats from `query_metrics` table
