@@ -320,7 +320,7 @@ Set up the foundational project structure, dependencies, Docker infrastructure, 
 - [x] FastAPI app with health check endpoint
 - [x] Celery app configuration and task skeleton
 
-### Phase 2: Document Ingestion Pipeline
+### Phase 2: Document Ingestion Pipeline (Complete)
 
 Build the full pipeline: PDF upload → parse → chunk → embed → store.
 
@@ -338,16 +338,21 @@ Build the full pipeline: PDF upload → parse → chunk → embed → store.
 - Batch embedding calls to OpenAI for efficiency
 - Docling for PDF parsing — handles financial tables with multi-row headers and spanning cells
 - **Pluggable vector store** — pgvector and Chroma behind common interface
+- Mixed sync/async interface: `add_chunks()` sync for Celery, `search()` async for FastAPI
+- Lazy sync engine initialization — avoids import errors when only FastAPI is running
+- ChromaDB >=1.5.1 for Pydantic v2 + Python 3.14 compatibility
 
 **Tasks:**
 
-- [ ] Implement Docling PDF parser with table-aware extraction
-- [ ] Implement token-based chunker with configurable size + metadata preservation (page number, section)
-- [ ] Implement OpenAI embedding service (batch embedding)
-- [ ] Implement `VectorStore` protocol with pgvector and Chroma backends
-- [ ] Wire up Celery task: parse → chunk → embed → store
-- [ ] Create `/ingest` POST and `/ingest/{task_id}` GET endpoints
-- [ ] Support chunk_size parameter in ingestion (for benchmarking different sizes)
+- [x] Implement Docling PDF parser with table-aware extraction (`app/services/parser.py`)
+- [x] Implement token-based chunker with configurable size + metadata preservation (`app/services/chunker.py`)
+- [x] Implement OpenAI embedding service with batch processing (`app/services/embedder.py`)
+- [x] Implement `VectorStore` protocol with pgvector and Chroma backends (`app/services/vectorstore.py`)
+- [x] Add sync SQLAlchemy engine for Celery workers (`app/db/engine.py`)
+- [x] Wire up Celery task: parse → chunk → embed → store (`app/workers/tasks.py`)
+- [x] Create `/ingest` POST and `/ingest/{task_id}` GET endpoints (`app/api/ingest.py`)
+- [x] Support chunk_size/chunk_overlap parameters in ingestion (for benchmarking)
+- [x] Unit tests: 9 chunker tests + 4 ChromaDB vectorstore tests (all passing)
 
 ### Phase 3: Agentic Search & Multi-Capability System
 
